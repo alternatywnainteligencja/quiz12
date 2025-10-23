@@ -12,12 +12,7 @@ const CrisisPathway: React.FC<CrisisPathwayProps> = ({ onResult, onBack }) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   const questions = [
-    { id: 'who_filed', q: 'Kto złożył pozew?',  opts: [
-      { text: 'Ja' },
-      { text: 'Ona' },
-      { text: 'Wspólny' },
-      { text: 'Jeszcze nie złożony', next: 'she_knows' } // przykład skoku
-    ] },
+    { id: 'crisis', q: 'Od jak dawna trwa kryzys?', opts: [{ text: 'Właśnie się o nim dowiedziałem' }, { text: 'Poniżej miesiąca' }, { text: '2-3 miesiące' }, { text: 'Więcej niż 3 miesiące' }] },
     { id: 'who_wants', q: 'Kto chce rozwodu?', opts: ['Ja', 'Ona', 'Oboje', 'Ja, ale jej nie mówiłem', 'Nikt jeszcze'] },
     { id: 'she_knows', q: 'Ona wie o rozwodzie?', opts: ['Tak, zgadza się', 'Tak, walczy', 'Tak, grozi', 'Podejrzewa', 'Nie wie'] },
     { id: 'threats', q: 'Czym grozi?', opts: ['Nie grozi', 'Dziećmi', 'Pieniędzmi', 'Reputacją', 'Fałszywymi oskarżeniami', 'Przemocą', 'Wszystkim'] },

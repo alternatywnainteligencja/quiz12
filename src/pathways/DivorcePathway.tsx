@@ -12,12 +12,9 @@ const DivorcePathway: React.FC<DivorcePathwayProps> = ({ onResult, onBack }) => 
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   const questions = [
-    { id: 'who_filed', q: 'Kto złożył pozew?',  opts: [
-      { text: 'Ja' },
-      { text: 'Ona' },
-      { text: 'Wspólny' },
-      { text: 'Jeszcze nie złożony', next: 'kids' } // przykład skoku
-    ] },
+
+    { id: 'who_filed', q: 'Kto złożył pozew?', opts: [{ text: 'Ja' }, { text: 'Ona' }, { text: 'Wspólny' }, { text: 'Jeszcze nie złożony', next: 'she_knows' }] },
+    { id: 'who_wants', q: 'Kto chce rozwodu?', opts: ['Ja', 'Ona', 'Oboje', 'Ja, ale jej nie mówiłem', 'Nikt jeszcze'] },
     { id: 'duration', q: 'Jak długo trwa?', opts: ['0-2 m-ce', '3-6 m-cy', '6-12 m-cy', 'Rok+', '2+ lata'] },
     { id: 'kids', q: 'Dzieci?', opts: ['Nie', 'Tak'] },
     { id: 'custody', q: 'Opieka?', opts: ['Dogadani 50/50', 'Dogadani - ona', 'Walczę o 50/50', 'Walczę o pełną', 'Przegrywam', 'Straciłem'] },
