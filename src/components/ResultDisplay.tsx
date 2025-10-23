@@ -1,5 +1,5 @@
 import React from "react";
-import { TrendingDown, Shield, ClipboardCheck, FileText, RefreshCw, Brain, BookOpenText, Heading1Icon, Heading2 } from "lucide-react";
+import { TrendingDown, Shield, ClipboardCheck, FileText, RefreshCw, Brain, BookOpenText, Heading1Icon, Heading2, Scale } from "lucide-react";
 
 const levelMap = {
   LOW: "NISKI",
@@ -21,7 +21,7 @@ const RiskBadge = ({ level, confidence }) => {
     <div className={`rounded-xl p-4 ${color} bg-opacity-90 shadow-lg text-white`}>
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-lg font-bold uppercase">Prognozowany poziom ryzyka</div>
+          <div className="text-lg font-bold uppercase">Poziom ryzyka</div>
           <div className="text-2xl font-extrabold tracking-tight">{levelMap[level.toUpperCase()] || level.toUpperCase()}</div>
         </div>
         <div className="text-right">
@@ -33,15 +33,16 @@ const RiskBadge = ({ level, confidence }) => {
   );
 };
 
+//jak wygląda PercentBar
 const PercentBar = ({ label, value }) => {
   const v = Math.round(value);
   const barColor =
-    v >= 50 ? "bg-red-500" : v >= 10 ? "bg-orange-400" : "bg-green-500";
+    v >= 50 ? "bg-red-500" : v >= 20 ? "bg-orange-400" : "bg-green-500";
   return (
     <div>
       <div className="flex justify-between mb-1">
-        <div className="text-sm font-semibold">{label}</div>
-        <div className="text-sm font-mono">{v}%</div>
+        <div className="text-lg font-semibold">{label}</div>
+        <div className="text-lg font-mono">{v}%</div>
       </div>
       <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
         <div className={`${barColor} h-3`} style={{ width: `${v}%` }} />
@@ -49,12 +50,12 @@ const PercentBar = ({ label, value }) => {
     </div>
   );
 };
-
+//jak wygląda ScenarioCard
 const ScenarioCard = ({ s }) => (
   <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
     <div className="flex items-start justify-between mb-2">
-      <h4 className="font-bold text-lg">{s.scenario}</h4>
-      <div className="text-2xl font-extrabold text-red-400">
+      <h4 className="text-lg font-semibold">{s.scenario}</h4>
+      <div className="text-lg  font-semibold text-red-400">
         {Math.round(s.probability)}%
       </div>
     </div>
@@ -199,27 +200,47 @@ const ResultDisplay = ({ result, onRestart }) => {
         <div className="flex w-full gap-4 p-0 bg-gray-850">
           {/* Lewa sekcja */}
           <div className="flex-1 bg-gray-800 rounded-lg p-5 border border-gray-700 overflow-auto">
-            <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
+            <h2 className="text-xl font-bold flex items-center gap-2 mb-7">
               <TrendingDown /> Kluczowe ryzyka
             </h2>
 
             {/* Kontener z odstępami między blokami */}
             <div className="space-y-6">
               <div>
-              <PercentBar label="Rozwód / separacja" value={probabilities.divorce || 0} />
-              <h3 className="text-sm"><div className="text-gray-300">Rozstanie wydaje się już nieuniknione na tym etapie</div></h3>
+                <PercentBar label="Rozwód / separacja" value={probabilities.divorce || 0} />
+                <h3 className="text-sm"><div className="text-gray-300">
+                  {probabilities.divorce <= 20 && "Ryzyko rozstania jest niskie — sytuacja jest stabilna."}
+                  {probabilities.divorce > 20 && probabilities.divorce <= 49 && "Ryzyko rozstania jest umiarkowane — warto zachować czujność."}
+                  {probabilities.divorce > 49 && probabilities.divorce <= 74 && "Ryzyko rozstania jest wysokie — sytuacja jest napięta."}
+                  {probabilities.divorce > 74 && "Ryzyko rozstania krytyczne — rozstanie wydaje się już nieuniknione."}</div></h3>
               </div>
               <div>
-              <PercentBar label="Fałszywe oskarżenia" value={probabilities.falseAccusation || 0} />
-              <h3 className="text-sm"><div className="text-gray-300">wydają się już nieunikniony na tym etapie</div></h3>
+                <PercentBar label="Fałszywe oskarżenia" value={probabilities.falseAccusation || 0} />
+                <h3 className="text-sm"><div className="text-gray-300">
+                  
+                  {probabilities.falseAccusation <= 20 && "Ryzyko fałszywych oskarżeń jest niskie — sytuacja jest stabilna."}
+                  {probabilities.falseAccusation > 20 && probabilities.falseAccusation <= 49 && "Ryzyko fałszywych oskarżeń jest umiarkowane — warto zachować czujność."}
+                  {probabilities.falseAccusation > 49 && probabilities.falseAccusation <= 74 && "Ryzyko fałszywych oskarżeń jest wysokie — sytuacja jest napięta."}
+                  {probabilities.falseAccusation > 74 && "Ryzyko fałszywych oskarżeń krytyczne — fałszywych oskarżeń wydają się już nieuniknione."}</div></h3>
               </div>
               <div>
-              <PercentBar label="Alienacja dzieci" value={probabilities.alienation || 0} />
-              <h3 className="text-xs"><div className="text-gray-300">wydaje się już nieunikniony na tym etapie</div></h3>
+                <PercentBar label="Alienacja dzieci" value={probabilities.alienation || 0} />
+                <h3 className="text-sm"><div className="text-gray-300">
+                  
+                  {probabilities.alienation <= 20 && "Ryzyko alienacji jest niskie — sytuacja jest stabilna."}
+                  {probabilities.alienation > 20 && probabilities.alienation <= 49 && "Ryzyko alienacji jest umiarkowane — warto zachować czujność."}
+                  {probabilities.alienation > 49 && probabilities.alienation <= 74 && "Ryzyko alienacji jest wysokie — sytuacja jest napięta."}
+                  {probabilities.alienation > 74 && "Ryzyko alienacji krytyczne — alienacja wydaje się już nieunikniona."}</div></h3>
               </div>
               <div>
-              <PercentBar label="Strata finansowa" value={probabilities.financialLoss || 0} />
-              <h3 className="text-xs"><div className="text-gray-300">wydaje się już nieunikniony na tym etapie</div></h3>
+                <PercentBar label="Znacząca strata finansowa" value={probabilities.financialLoss || 0} />
+                <h3 className="text-sm"><div className="text-gray-300">
+                  
+                  
+                  {probabilities.financialLoss <= 20 && "Ryzyko znaczących strat finansowych jest niskie — sytuacja jest stabilna."}
+                  {probabilities.financialLoss > 20 && probabilities.financialLoss <= 49 && "Ryzyko znaczących strat finansowych jest umiarkowane — warto zachować czujność."}
+                  {probabilities.financialLoss > 49 && probabilities.financialLoss <= 74 && "Ryzyko znaczących strat finansowych jest wysokie — sytuacja jest napięta."}
+                  {probabilities.financialLoss > 74 && "Ryzyko znaczących strat finansowych krytyczne — straty są nieuniknione."}</div></h3>
               </div>
             </div>
           </div>
@@ -240,41 +261,25 @@ const ResultDisplay = ({ result, onRestart }) => {
             </div>
           </div>
         </div>
-        {/* Kluczowe ryzyka2 */}
-        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              <TrendingDown /> Kluczowe ryzyka
-            </h3>
-          </div>
-          <PercentBar label="Rozwód / separacja" value={probabilities.divorce || 0} />
-          <PercentBar label="Fałszywe oskarżenia" value={probabilities.falseAccusation || 0} />
-          <PercentBar label="Alienacja dzieci" value={probabilities.alienation || 0} />
-          <PercentBar label="Strata finansowa" value={probabilities.financialLoss || 0} />
-        </div>
 
-        {/* Pomniejsze ryzyka */}
-        <div className="md:w-85 mt-6 md:mt-0 flex-shrink-0">
-          <div className="bg-gray-800 rounded-lg p-2 border border-gray-700 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="text-xl font-bold flex items-center gap-2"> <TrendingDown />  Pomniejsze ryzyka</div>
+
+        {/* Zakończenie i CTA */}
+        {conclusion && (
+          <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6 border border-blue-700">
+            <div className="text-center">
+              <p className="text-lg text-gray-200 mb-4 leading-relaxed">
+                {conclusion.summary}
+              </p>
+              {conclusion.cta && (
+                <div className="mt-6">
+                  <button className="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-lg text-white font-bold text-lg shadow-lg transition transform hover:scale-105">
+                    {conclusion.cta}
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <div className="grid grid-cols-1 md:grid-cols-1 gap-1">
-                {scenarios && scenarios.length > 0 ? (
-                  scenarios.map((s, i) => <ScenarioCard key={i} s={s} />)
-                ) : (
-                  <div className="col-span-full text-gray-300">
-                    Brak doprecyzowanych scenariuszy — ryzyko jest niskie lub brak danych.
-                  </div>
-                )}
-              </div>
-            </div>
-
           </div>
-        </div>
-
-
+        )}
         {/* Rekomendacje */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
@@ -354,23 +359,7 @@ const ResultDisplay = ({ result, onRestart }) => {
 
 
 
-        {/* Zakończenie i CTA */}
-        {conclusion && (
-          <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6 border border-blue-700">
-            <div className="text-center">
-              <p className="text-lg text-gray-200 mb-4 leading-relaxed">
-                {conclusion.summary}
-              </p>
-              {conclusion.cta && (
-                <div className="mt-6">
-                  <button className="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-lg text-white font-bold text-lg shadow-lg transition transform hover:scale-105">
-                    {conclusion.cta}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+
 
         {/* Przyciski i meta */}
         <div className="flex flex-col md:flex-row gap-3 justify-between items-center">
