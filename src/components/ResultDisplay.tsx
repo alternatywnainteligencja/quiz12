@@ -1,5 +1,5 @@
 import React from "react";
-import { TrendingDown, Shield, ClipboardCheck, FileText, RefreshCw, Brain, BookOpenText  } from "lucide-react";
+import { TrendingDown, Shield, ClipboardCheck, FileText, RefreshCw, Brain, BookOpenText, Heading1Icon, Heading2 } from "lucide-react";
 
 const levelMap = {
   LOW: "NISKI",
@@ -67,13 +67,12 @@ const ActionItem = ({ a }) => {
     a.priority === "KRYTYCZNY"
       ? "bg-red-700"
       : a.priority === "WYSOKI"
-      ? "bg-orange-600"
-      : "bg-gray-700";
+        ? "bg-orange-600"
+        : "bg-gray-700";
   return (
     <div
-      className={`rounded-md p-3 ${bg} bg-opacity-30 border-l-4 ${
-        a.priority === "KRYTYCZNY" ? "border-red-500" : "border-gray-600"
-      }`}
+      className={`rounded-md p-3 ${bg} bg-opacity-30 border-l-4 ${a.priority === "KRYTYCZNY" ? "border-red-500" : "border-gray-600"
+        }`}
     >
       <div className="flex items-center gap-3">
         <span className="text-sm font-bold uppercase px-2 py-1 bg-black bg-opacity-30 rounded">
@@ -151,9 +150,9 @@ const BookRecommendation = ({ book }) => (
 );
 
 const DebugMeta = ({ meta }) => {
- if (!meta) return null;
- return (
-   <details className="bg-black bg-opacity-30 rounded p-3 text-xs text-gray-300">
+  if (!meta) return null;
+  return (
+    <details className="bg-black bg-opacity-30 rounded p-3 text-xs text-gray-300">
       <summary className="cursor-pointer font-medium">Debug / meta</summary>
       <pre className="whitespace-pre-wrap mt-2 text-xs">
         {JSON.stringify(meta, null, 2)}
@@ -194,40 +193,87 @@ const ResultDisplay = ({ result, onRestart }) => {
             </div>
           </div>
 
-          <div className="md:w-80 mt-6 md:mt-0 flex-shrink-0">
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="font-bold">Kluczowe ryzyka</div>
-              </div>
-              <div className="space-y-3">
-                <PercentBar label="Rozwód / separacja" value={probabilities.divorce || 0} />
-                <PercentBar label="Fałszywe oskarżenia" value={probabilities.falseAccusation || 0} />
-                <PercentBar label="Alienacja dzieci" value={probabilities.alienation || 0} />
-                <PercentBar label="Strata finansowa" value={probabilities.financialLoss || 0} />
-              </div>
-            </div>
-
-     
-          </div>
         </div>
 
-        {/* Scenariusze */}
+        {/* Kontener flex wypełniający ekran */}
+        <div className="flex w-full gap-4 p-0 bg-gray-850">
+          {/* Lewa sekcja */}
+          <div className="flex-1 bg-gray-800 rounded-lg p-5 border border-gray-700 overflow-auto">
+            <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
+              <TrendingDown /> Kluczowe ryzyka
+            </h2>
+
+            {/* Kontener z odstępami między blokami */}
+            <div className="space-y-6">
+              <div>
+              <PercentBar label="Rozwód / separacja" value={probabilities.divorce || 0} />
+              <h3 className="text-sm"><div className="text-gray-300">Rozstanie wydaje się już nieuniknione na tym etapie</div></h3>
+              </div>
+              <div>
+              <PercentBar label="Fałszywe oskarżenia" value={probabilities.falseAccusation || 0} />
+              <h3 className="text-sm"><div className="text-gray-300">wydają się już nieunikniony na tym etapie</div></h3>
+              </div>
+              <div>
+              <PercentBar label="Alienacja dzieci" value={probabilities.alienation || 0} />
+              <h3 className="text-xs"><div className="text-gray-300">wydaje się już nieunikniony na tym etapie</div></h3>
+              </div>
+              <div>
+              <PercentBar label="Strata finansowa" value={probabilities.financialLoss || 0} />
+              <h3 className="text-xs"><div className="text-gray-300">wydaje się już nieunikniony na tym etapie</div></h3>
+              </div>
+            </div>
+          </div>
+
+          {/* Prawa sekcja */}
+          <div className="flex-1 bg-gray-800 rounded-lg p-4 border border-gray-700 overflow-auto">
+            <h3 className="text-xl font-bold flex items-center gap-2 mb-4">
+              <TrendingDown /> Pomniejsze ryzyka
+            </h3>
+            <div className="space-y-2">
+              {scenarios && scenarios.length > 0 ? (
+                scenarios.map((s, i) => <ScenarioCard key={i} s={s} />)
+              ) : (
+                <div className="text-gray-300">
+                  Brak doprecyzowanych scenariuszy — ryzyko jest niskie lub brak danych.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        {/* Kluczowe ryzyka2 */}
         <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold flex items-center gap-2">
-              <TrendingDown /> Złe scenariusze i ich prawdopodobieństwa
+              <TrendingDown /> Kluczowe ryzyka
             </h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {scenarios && scenarios.length > 0 ? (
-              scenarios.map((s, i) => <ScenarioCard key={i} s={s} />)
-            ) : (
-              <div className="col-span-full text-gray-300">
-                Brak doprecyzowanych scenariuszy — ryzyko jest niskie lub brak danych.
+          <PercentBar label="Rozwód / separacja" value={probabilities.divorce || 0} />
+          <PercentBar label="Fałszywe oskarżenia" value={probabilities.falseAccusation || 0} />
+          <PercentBar label="Alienacja dzieci" value={probabilities.alienation || 0} />
+          <PercentBar label="Strata finansowa" value={probabilities.financialLoss || 0} />
+        </div>
+
+        {/* Pomniejsze ryzyka */}
+        <div className="md:w-85 mt-6 md:mt-0 flex-shrink-0">
+          <div className="bg-gray-800 rounded-lg p-2 border border-gray-700 space-y-1">
+            <div className="flex items-center justify-between">
+              <div className="text-xl font-bold flex items-center gap-2"> <TrendingDown />  Pomniejsze ryzyka</div>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-1">
+                {scenarios && scenarios.length > 0 ? (
+                  scenarios.map((s, i) => <ScenarioCard key={i} s={s} />)
+                ) : (
+                  <div className="col-span-full text-gray-300">
+                    Brak doprecyzowanych scenariuszy — ryzyko jest niskie lub brak danych.
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
           </div>
         </div>
+
 
         {/* Rekomendacje */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -296,7 +342,7 @@ const ResultDisplay = ({ result, onRestart }) => {
         {readingList && readingList.length > 0 && (
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <BookOpenText  /> Ciekawe lektury
+              <BookOpenText /> Przydatne lektury
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {readingList.map((book, i) => (
@@ -306,7 +352,7 @@ const ResultDisplay = ({ result, onRestart }) => {
           </div>
         )}
 
-        
+
 
         {/* Zakończenie i CTA */}
         {conclusion && (
