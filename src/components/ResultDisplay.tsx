@@ -1,6 +1,6 @@
 import React from "react";
-import { TrendingDown, Shield, ClipboardCheck, FileText, RefreshCw, Brain, BookOpenText, Heading1Icon, Heading2, Scale } from "lucide-react";
-
+import { TriangleAlert, DollarSign, TrendingDown, Shield, ClipboardCheck, FileText, RefreshCw, Brain, BookOpenText, Heading1Icon, Heading2, Scale } from "lucide-react";
+import { MdMan, MdMan4, MdWoman } from "react-icons/md";
 const levelMap = {
   LOW: "NISKI",
   MEDIUM: "ŚREDNI",
@@ -37,29 +37,31 @@ const RiskBadge = ({ level, confidence }) => {
 const PercentBar = ({ label, value }) => {
   const v = Math.round(value);
   const barColor =
-    v >= 50 ? "bg-red-500" : v >= 20 ? "bg-orange-400" : "bg-green-500";
-  return (
-    <div>
-      <div className="flex justify-between mb-1">
-        <div className="text-lg font-semibold">{label}</div>
-        <div className="text-lg font-mono">{v}%</div>
-      </div>
-      <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-        <div className={`${barColor} h-3`} style={{ width: `${v}%` }} />
-      </div>
-    </div>
-  );
+    v >= 75 ? "bg-red-500" :
+      v >= 50 ? "bg-orange-400" :
+        v >= 21 ? "bg-yellow-400" :
+          "bg-green-400"; return (
+            <div >
+              <div className="flex justify-between mb-1 ">
+                <div className="text-lg font-semibold">{label}</div>
+                <div className="text-lg font-semibold">{v}%</div>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                <div className={`${barColor} h-3`} style={{ width: `${v}%` }} />
+              </div>
+            </div>
+          );
 };
 //jak wygląda ScenarioCard
 const ScenarioCard = ({ s }) => (
   <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-    <div className="flex items-start justify-between mb-2">
-      <h4 className="text-lg font-semibold">{s.scenario}</h4>
-      <div className="text-lg  font-semibold text-red-400">
+    <div className="flex items-start justify-between mb-0">
+      <h6 className="text-lg font-semibold">{s.scenario}</h6>
+      <div className="text-lg  font-semibold ">
         {Math.round(s.probability)}%
       </div>
     </div>
-    <p className="text-gray-300">{s.why || s.impact || ""}</p>
+    <div className="text-gray-300 text-sm" >{s.why || s.impact || ""}</div>
   </div>
 );
 
@@ -145,7 +147,7 @@ const BookRecommendation = ({ book }) => (
     <div className="font-semibold text-white">{book.title}</div>
     <div className="text-sm text-gray-400">{book.author}</div>
     {book.description && (
-      <p className="text-xs text-gray-300 mt-2">{book.description}</p>
+      <p className="text-sm text-gray-300 mt-2">{book.description}</p>
     )}
   </div>
 );
@@ -199,48 +201,48 @@ const ResultDisplay = ({ result, onRestart }) => {
         {/* Kontener flex wypełniający ekran */}
         <div className="flex w-full gap-4 p-0 bg-gray-850">
           {/* Lewa sekcja */}
-          <div className="flex-1 bg-gray-800 rounded-lg p-5 border border-gray-700 overflow-auto">
-            <h2 className="text-xl font-bold flex items-center gap-2 mb-7">
-              <TrendingDown /> Kluczowe ryzyka
+          <div className="flex-1 bg-gray-800 rounded-lg p-4 border border-gray-700 overflow-auto">
+            <h2 className="text-xl font-bold flex items-center gap-2 mb-3">
+              <TriangleAlert /> Kluczowe ryzyka
             </h2>
 
             {/* Kontener z odstępami między blokami */}
-            <div className="space-y-6">
-              <div>
+            <div className="space-y-2">
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <PercentBar label="Rozwód / separacja" value={probabilities.divorce || 0} />
                 <h3 className="text-sm"><div className="text-gray-300">
-                  {probabilities.divorce <= 20 && "Ryzyko rozstania jest niskie — sytuacja jest stabilna."}
-                  {probabilities.divorce > 20 && probabilities.divorce <= 49 && "Ryzyko rozstania jest umiarkowane — warto zachować czujność."}
-                  {probabilities.divorce > 49 && probabilities.divorce <= 74 && "Ryzyko rozstania jest wysokie — sytuacja jest napięta."}
-                  {probabilities.divorce > 74 && "Ryzyko rozstania krytyczne — rozstanie wydaje się już nieuniknione."}</div></h3>
+                  {probabilities.divorce <= 20 && "Ryzyko rozstania jest niskie"}
+                  {probabilities.divorce > 20 && probabilities.divorce <= 49 && "Ryzyko rozstania jest umiarkowane"}
+                  {probabilities.divorce > 49 && probabilities.divorce <= 74 && "Ryzyko rozstania jest wysokie"}
+                  {probabilities.divorce > 74 && "Ryzyko rozstania krytyczne"}</div></h3>
               </div>
-              <div>
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <PercentBar label="Fałszywe oskarżenia" value={probabilities.falseAccusation || 0} />
                 <h3 className="text-sm"><div className="text-gray-300">
-                  
+
                   {probabilities.falseAccusation <= 20 && "Ryzyko fałszywych oskarżeń jest niskie — sytuacja jest stabilna."}
-                  {probabilities.falseAccusation > 20 && probabilities.falseAccusation <= 49 && "Ryzyko fałszywych oskarżeń jest umiarkowane — warto zachować czujność."}
-                  {probabilities.falseAccusation > 49 && probabilities.falseAccusation <= 74 && "Ryzyko fałszywych oskarżeń jest wysokie — sytuacja jest napięta."}
-                  {probabilities.falseAccusation > 74 && "Ryzyko fałszywych oskarżeń krytyczne — fałszywych oskarżeń wydają się już nieuniknione."}</div></h3>
+                  {probabilities.falseAccusation > 20 && probabilities.falseAccusation <= 49 && "Ryzyko fałszywych oskarżeń jest umiarkowane"}
+                  {probabilities.falseAccusation > 49 && probabilities.falseAccusation <= 74 && "Ryzyko fałszywych oskarżeń jest wysokie"}
+                  {probabilities.falseAccusation > 74 && "Ryzyko fałszywych oskarżeń krytyczne"}</div></h3>
               </div>
-              <div>
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <PercentBar label="Alienacja dzieci" value={probabilities.alienation || 0} />
                 <h3 className="text-sm"><div className="text-gray-300">
-                  
-                  {probabilities.alienation <= 20 && "Ryzyko alienacji jest niskie — sytuacja jest stabilna."}
-                  {probabilities.alienation > 20 && probabilities.alienation <= 49 && "Ryzyko alienacji jest umiarkowane — warto zachować czujność."}
-                  {probabilities.alienation > 49 && probabilities.alienation <= 74 && "Ryzyko alienacji jest wysokie — sytuacja jest napięta."}
-                  {probabilities.alienation > 74 && "Ryzyko alienacji krytyczne — alienacja wydaje się już nieunikniona."}</div></h3>
+
+                  {probabilities.alienation <= 20 && "Ryzyko alienacji jest niskie"}
+                  {probabilities.alienation > 20 && probabilities.alienation <= 49 && "Ryzyko alienacji jest umiarkowane"}
+                  {probabilities.alienation > 49 && probabilities.alienation <= 74 && "Ryzyko alienacji jest wysokie"}
+                  {probabilities.alienation > 74 && "Ryzyko alienacji krytyczne"}</div></h3>
               </div>
-              <div>
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <PercentBar label="Znacząca strata finansowa" value={probabilities.financialLoss || 0} />
                 <h3 className="text-sm"><div className="text-gray-300">
-                  
-                  
-                  {probabilities.financialLoss <= 20 && "Ryzyko znaczących strat finansowych jest niskie — sytuacja jest stabilna."}
-                  {probabilities.financialLoss > 20 && probabilities.financialLoss <= 49 && "Ryzyko znaczących strat finansowych jest umiarkowane — warto zachować czujność."}
-                  {probabilities.financialLoss > 49 && probabilities.financialLoss <= 74 && "Ryzyko znaczących strat finansowych jest wysokie — sytuacja jest napięta."}
-                  {probabilities.financialLoss > 74 && "Ryzyko znaczących strat finansowych krytyczne — straty są nieuniknione."}</div></h3>
+
+
+                  {probabilities.financialLoss <= 20 && "Ryzyko znaczących strat finansowych jest niskie"}
+                  {probabilities.financialLoss > 20 && probabilities.financialLoss <= 49 && "Ryzyko znaczących strat finansowych jest umiarkowane"}
+                  {probabilities.financialLoss > 49 && probabilities.financialLoss <= 74 && "Ryzyko znaczących strat finansowych jest wysokie"}
+                  {probabilities.financialLoss > 74 && "Ryzyko znaczących strat finansowych krytyczne"}</div></h3>
               </div>
             </div>
           </div>
@@ -328,13 +330,13 @@ const ResultDisplay = ({ result, onRestart }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {psychologicalProfiles.user && (
                 <PsychologicalProfile
-                  title="Twój Profil"
+                   title={<><MdMan4 size={30} className="inline mr-2" /> Twój Profil</>}
                   traits={psychologicalProfiles.user}
                 />
               )}
               {psychologicalProfiles.partner && (
                 <PsychologicalProfile
-                  title="Profil Partnerki"
+                  title={<><MdWoman size={30}className="inline mr-1" /> Profil Partnerki</>}
                   traits={psychologicalProfiles.partner}
                 />
               )}
@@ -363,10 +365,10 @@ const ResultDisplay = ({ result, onRestart }) => {
 
         {/* Przyciski i meta */}
         <div className="flex flex-col md:flex-row gap-3 justify-between items-center">
-          <div className="flex gap-3 w-full md:w-auto">
+          <div className="flex gap-3 w-full md:w-auto ">
             <button
               onClick={onRestart}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-3 rounded text-white font-bold"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-3 rounded text-white font-bold transition transform hover:scale-105"
             >
               <RefreshCw size={16} /> Rozpocznij od nowa
             </button>
@@ -380,7 +382,7 @@ const ResultDisplay = ({ result, onRestart }) => {
                 navigator.clipboard?.writeText(txt);
                 alert("Podsumowanie skopiowane do schowka.");
               }}
-              className="bg-gray-700 hover:bg-gray-600 px-4 py-3 rounded text-gray-200"
+              className="bg-gray-700 hover:bg-gray-600 px-4 py-3 rounded text-gray-200 transition transform hover:scale-105" 
             >
               <FileText size={16} /> Kopiuj podsumowanie
             </button>
