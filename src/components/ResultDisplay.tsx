@@ -1,5 +1,12 @@
 import React from "react";
-import { TrendingDown, Shield, FileText, RefreshCw, Brain } from "lucide-react";
+import { TrendingDown, Shield, ClipboardCheck, FileText, RefreshCw, Brain, BookOpenText  } from "lucide-react";
+
+const levelMap = {
+  LOW: "NISKI",
+  MEDIUM: "ŚREDNI",
+  HIGH: "WYSOKI",
+  CRITICAL: "KRYTYCZNY"
+};
 
 const riskColors = {
   low: "bg-green-500",
@@ -14,11 +21,11 @@ const RiskBadge = ({ level, confidence }) => {
     <div className={`rounded-xl p-4 ${color} bg-opacity-90 shadow-lg text-white`}>
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-lg font-bold uppercase">Poziom ryzyka</div>
-          <div className="text-2xl font-extrabold tracking-tight">{level.toUpperCase()}</div>
+          <div className="text-lg font-bold uppercase">Prognozowany poziom ryzyka</div>
+          <div className="text-2xl font-extrabold tracking-tight">{levelMap[level.toUpperCase()] || level.toUpperCase()}</div>
         </div>
         <div className="text-right">
-          <div className="text-sm">Pewność</div>
+          <div className="text-sm">Pewność prognozy</div>
           <div className="text-2xl font-bold">{confidence}%</div>
         </div>
       </div>
@@ -29,7 +36,7 @@ const RiskBadge = ({ level, confidence }) => {
 const PercentBar = ({ label, value }) => {
   const v = Math.round(value);
   const barColor =
-    v >= 75 ? "bg-red-500" : v >= 45 ? "bg-orange-400" : "bg-green-500";
+    v >= 50 ? "bg-red-500" : v >= 10 ? "bg-orange-400" : "bg-green-500";
   return (
     <div>
       <div className="flex justify-between mb-1">
@@ -200,17 +207,7 @@ const ResultDisplay = ({ result, onRestart }) => {
               </div>
             </div>
 
-            <div className="mt-4 bg-gray-800 rounded-lg p-4 border border-gray-700">
-              <div className="flex items-center justify-between mb-3">
-                <div className="font-bold">Szybkie akcje</div>
-                <div className="text-xs text-gray-400">co zrobić teraz</div>
-              </div>
-              <div className="space-y-2">
-                {(actionItems || []).slice(0, 3).map((a, i) => (
-                  <ActionItem key={i} a={a} />
-                ))}
-              </div>
-            </div>
+     
           </div>
         </div>
 
@@ -218,7 +215,7 @@ const ResultDisplay = ({ result, onRestart }) => {
         <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold flex items-center gap-2">
-              <TrendingDown /> Scenariusze — prawdopodobieństwa
+              <TrendingDown /> Złe scenariusze i ich prawdopodobieństwa
             </h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -261,7 +258,7 @@ const ResultDisplay = ({ result, onRestart }) => {
         {timeline && (
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <FileText /> Plan Działania — Oś Czasu
+              <ClipboardCheck /> Plan działania — oś czasu
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {timeline.days30 && <TimelineCard period="30 dni" tasks={timeline.days30} />}
@@ -271,25 +268,11 @@ const ResultDisplay = ({ result, onRestart }) => {
           </div>
         )}
 
-        {/* Rekomendowane Lektury */}
-        {readingList && readingList.length > 0 && (
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <FileText /> Przydatne Lektury
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {readingList.map((book, i) => (
-                <BookRecommendation key={i} book={book} />
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Profile Psychologiczne */}
         {psychologicalProfiles && (
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Brain /> Profile Psychologiczne
+              <Brain /> Wasze profile psychologiczne
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {psychologicalProfiles.user && (
@@ -307,6 +290,23 @@ const ResultDisplay = ({ result, onRestart }) => {
             </div>
           </div>
         )}
+
+
+        {/* Rekomendowane Lektury */}
+        {readingList && readingList.length > 0 && (
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <BookOpenText  /> Ciekawe lektury
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {readingList.map((book, i) => (
+                <BookRecommendation key={i} book={book} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        
 
         {/* Zakończenie i CTA */}
         {conclusion && (

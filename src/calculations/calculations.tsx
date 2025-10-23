@@ -383,7 +383,7 @@ function makeResult(type: string) {
           author: "James Clear",
           description: "Małe zmiany, wielkie efekty - rozwój osobisty w praktyce"
         }
-      
+      ],
       psychologicalProfiles: {
         user: [
           { label: "Stan emocjonalny", value: "Stabilny, jednak ryzyko rutyny i stagnacji" },
