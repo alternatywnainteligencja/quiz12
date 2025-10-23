@@ -21,9 +21,9 @@ const BeforePathway: React.FC<BeforePathwayProps> = ({ onResult, onBack }) => {
     { id: 'income_now', q: 'Kto z Was więcej teraz zarabia?', opts: ['Ja 3x+', 'Ja 2x', 'Podobnie', 'Ona więcej', 'Ona nie pracuje'] },
     { id: 'income_future', q: 'Kto będzie żywicielem rodziny?', opts: ['Tylko ja', 'Głównie ja 70%', 'Ja 60%', 'Równo', 'Ona więcej'] },
     { id: 'her_debt', q: 'Czy ona ma długi', opts: ['Brak', 'Małe', 'Kredyt studencki', 'Znaczne', 'Nie wiem'] },
-    { id: 'her_spending', q: 'Jak ona wydaje pieniądze?', opts: ['Oszczędna', 'Zbalansowana', 'Lubi shopping', 'Luksusowe gusta', 'Impulsywna, długi'] },
+    { id: 'her_spending', q: 'Jak ona wydaje pieniądze?', opts: ['Jest bardzo oszczędna', 'Normalnie', 'Lubi shopping', 'Kupuje drogo, luksusowo', 'Impulsywna, ma długi'] },
     { id: 'transparency', q: 'Przejrzystość finansowa między Wami?', opts: ['Pełna', 'Częściowa', 'Ograniczona', 'Tajemnicza'] },
-    { id: 'pressure', q: 'Kto naciska na ślub?', opts: ['Oboje równo', 'Ja bardziej', 'Ona bardziej', 'Ona ultimatum'] },
+    { id: 'pressure', q: 'Kto naciska na ślub?', opts: ['Oboje po równo', 'Ja bardziej', 'Ona bardziej', 'Ona dała ultimatum'] },
     { id: 'red_flags', q: 'Red flags?', opts: ['Brak', 'Drobne', 'Kilka rzeczy', 'Poważne', 'Ignoruję je'] },
      
     { id: 'test', q: 'Ile dzieci?', opts: ['Żadnych', 'Jedno', 'Dwoje', 'Troje+', 'Ona chce więcej'] },
