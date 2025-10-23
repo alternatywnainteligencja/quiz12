@@ -16,7 +16,7 @@ const DivorcePathway: React.FC<DivorcePathwayProps> = ({ onResult, onBack }) => 
       { text: 'Ja' },
       { text: 'Ona' },
       { text: 'Wspólny' },
-      { text: 'Jeszcze nie złożony', next: 'prenup' } // przykład skoku
+      { text: 'Jeszcze nie złożony', next: 'kids' } // przykład skoku
     ] },
     { id: 'duration', q: 'Jak długo trwa?', opts: ['0-2 m-ce', '3-6 m-cy', '6-12 m-cy', 'Rok+', '2+ lata'] },
     { id: 'kids', q: 'Dzieci?', opts: ['Nie', 'Tak'] },
@@ -37,16 +37,36 @@ const DivorcePathway: React.FC<DivorcePathwayProps> = ({ onResult, onBack }) => 
     { id: 'emotional', q: 'Stan emocjonalny?', opts: ['Dobry', 'Stres ale OK', 'Walczę', 'Depresja', 'Załamanie'] }
   ];
 
-  const handleAnswer = (value: string) => {
-    const newAnswers = { ...answers, [questions[step].id]: value };
-    setAnswers(newAnswers);
-    if (step < questions.length - 1) {
-      setStep(step + 1);
-    } else {
-      const res = calculateDivorce(newAnswers);
-      onResult(res);
+const handleAnswer = (value: string) => {
+  const currentQuestion = questions[step];
+  const newAnswers = { ...answers, [currentQuestion.id]: value };
+  setAnswers(newAnswers);
+
+  // znajdź obiekt opcji (bo niektóre są stringami, inne obiektami)
+  const chosenOpt = currentQuestion.opts.find(opt => 
+    typeof opt === 'object' ? opt.text === value : opt === value
+  );
+
+  let nextStep = step + 1; // domyślnie idziemy dalej
+
+  // jeśli odpowiedź ma "next" -> znajdź indeks pytania o tym id
+  if (chosenOpt && typeof chosenOpt === 'object' && chosenOpt.next) {
+    const nextIndex = questions.findIndex(q => q.id === chosenOpt.next);
+    if (nextIndex !== -1) {
+      nextStep = nextIndex;
     }
-  };
+  }
+
+  // jeśli są jeszcze pytania, idziemy dalej
+  if (nextStep < questions.length) {
+    setStep(nextStep);
+  } else {
+    // koniec — oblicz wynik
+    const res = calculateDivorce(newAnswers);
+    onResult(res);
+  }
+};
+
 
   const q = questions[step];
   const progress = ((step + 1) / questions.length) * 100;
@@ -55,7 +75,7 @@ const DivorcePathway: React.FC<DivorcePathwayProps> = ({ onResult, onBack }) => 
     <QuestionScreen
       title="⚖️ Rozwód"
       question={q.q}
-      options={q.opts}
+      options={q.opts.map(opt => typeof opt === 'string' ? opt : opt.text)}
       onAnswer={handleAnswer}
       onBack={step > 0 ? () => setStep(step - 1) : onBack}
       progress={progress}

@@ -12,7 +12,12 @@ const CrisisPathway: React.FC<CrisisPathwayProps> = ({ onResult, onBack }) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   const questions = [
-    { id: 'duration', q: 'Jak długo trwa kryzys?', opts: ['1-3 miesiące', '3-6 miesięcy', '6-12 miesięcy', 'Ponad rok', 'Kilka lat', 'Od początku'] },
+    { id: 'who_filed', q: 'Kto złożył pozew?',  opts: [
+      { text: 'Ja' },
+      { text: 'Ona' },
+      { text: 'Wspólny' },
+      { text: 'Jeszcze nie złożony', next: 'she_knows' } // przykład skoku
+    ] },
     { id: 'who_wants', q: 'Kto chce rozwodu?', opts: ['Ja', 'Ona', 'Oboje', 'Ja, ale jej nie mówiłem', 'Nikt jeszcze'] },
     { id: 'she_knows', q: 'Ona wie o rozwodzie?', opts: ['Tak, zgadza się', 'Tak, walczy', 'Tak, grozi', 'Podejrzewa', 'Nie wie'] },
     { id: 'threats', q: 'Czym grozi?', opts: ['Nie grozi', 'Dziećmi', 'Pieniędzmi', 'Reputacją', 'Fałszywymi oskarżeniami', 'Przemocą', 'Wszystkim'] },
@@ -31,16 +36,35 @@ const CrisisPathway: React.FC<CrisisPathwayProps> = ({ onResult, onBack }) => {
     { id: 'timeline', q: 'Kiedy działać?', opts: ['ASAP', 'Tygodnie', 'Miesiące', 'Czekam na moment', 'Nie wiem'] }
   ];
 
-  const handleAnswer = (value: string) => {
-    const newAnswers = { ...answers, [questions[step].id]: value };
-    setAnswers(newAnswers);
-    if (step < questions.length - 1) {
-      setStep(step + 1);
-    } else {
-      const res = calculateCrisis(newAnswers);
-      onResult(res);
+ const handleAnswer = (value: string) => {
+  const currentQuestion = questions[step];
+  const newAnswers = { ...answers, [currentQuestion.id]: value };
+  setAnswers(newAnswers);
+
+  // znajdź wybraną opcję (może być string lub obiekt)
+  const chosenOpt = currentQuestion.opts.find(opt =>
+    typeof opt === 'object' ? opt.text === value : opt === value
+  );
+
+  let nextStep = step + 1; // domyślnie następne pytanie
+
+  // jeśli odpowiedź ma pole "next", to przeskocz do tego pytania
+  if (chosenOpt && typeof chosenOpt === 'object' && chosenOpt.next) {
+    const nextIndex = questions.findIndex(q => q.id === chosenOpt.next);
+    if (nextIndex !== -1) {
+      nextStep = nextIndex;
     }
-  };
+  }
+
+  // jeśli jeszcze są pytania — idź dalej, w przeciwnym razie zakończ
+  if (nextStep < questions.length) {
+    setStep(nextStep);
+  } else {
+    const res = calculateCrisis(newAnswers);
+    onResult(res);
+  }
+};
+
 
   const q = questions[step];
   const progress = ((step + 1) / questions.length) * 100;
@@ -49,7 +73,7 @@ const CrisisPathway: React.FC<CrisisPathwayProps> = ({ onResult, onBack }) => {
     <QuestionScreen
       title="⚠️ Kryzys"
       question={q.q}
-      options={q.opts}
+      options={q.opts.map(opt => typeof opt === 'string' ? opt : opt.text)}
       onAnswer={handleAnswer}
       onBack={step > 0 ? () => setStep(step - 1) : onBack}
       progress={progress}

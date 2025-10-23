@@ -29,16 +29,35 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
     { id: 'paternity', q: 'Pewność ojcostwa? (jeśli dzieci)', opts: ['Pewien', 'Prawie pewien', 'Wątpliwości', 'Test - OK', 'Test - nie moje', 'Boję się'] }
   ];
 
-  const handleAnswer = (value: string) => {
-    const newAnswers = { ...answers, [questions[step].id]: value };
-    setAnswers(newAnswers);
-    if (step < questions.length - 1) {
-      setStep(step + 1);
-    } else {
-      const res = calculateMarried(newAnswers);
-      onResult(res);
+const handleAnswer = (value: string) => {
+  const currentQuestion = questions[step];
+  const newAnswers = { ...answers, [currentQuestion.id]: value };
+  setAnswers(newAnswers);
+
+  // znajdź wybraną opcję (może być string lub obiekt)
+  const chosenOpt = currentQuestion.opts.find(opt =>
+    typeof opt === 'object' ? opt.text === value : opt === value
+  );
+
+  let nextStep = step + 1; // domyślnie następne pytanie
+
+  // jeśli odpowiedź ma pole "next", to przeskocz do tego pytania
+  if (chosenOpt && typeof chosenOpt === 'object' && chosenOpt.next) {
+    const nextIndex = questions.findIndex(q => q.id === chosenOpt.next);
+    if (nextIndex !== -1) {
+      nextStep = nextIndex;
     }
-  };
+  }
+
+  // jeśli jeszcze są pytania — idź dalej, w przeciwnym razie zakończ
+  if (nextStep < questions.length) {
+    setStep(nextStep);
+  } else {
+    const res = calculateMarried(newAnswers);
+    onResult(res);
+  }
+};
+
 
   const q = questions[step];
   const progress = ((step + 1) / questions.length) * 100;
@@ -47,7 +66,7 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
     <QuestionScreen
       title="💚 W małżeństwie"
       question={q.q}
-      options={q.opts}
+      options={q.opts.map(opt => typeof opt === 'string' ? opt : opt.text)}
       onAnswer={handleAnswer}
       onBack={step > 0 ? () => setStep(step - 1) : onBack}
       progress={progress}
