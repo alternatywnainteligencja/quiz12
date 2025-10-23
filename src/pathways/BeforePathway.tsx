@@ -25,6 +25,17 @@ const BeforePathway: React.FC<BeforePathwayProps> = ({ onResult, onBack }) => {
     { id: 'transparency', q: 'Przejrzystość finansowa?', opts: ['Pełna', 'Częściowa', 'Ograniczona', 'Tajemnicza'] },
     { id: 'pressure', q: 'Kto naciska na ślub?', opts: ['Oboje równo', 'Ja bardziej', 'Ona bardziej', 'Ona ultimatum'] },
     { id: 'red_flags', q: 'Red flags?', opts: ['Brak', 'Drobne', 'Kilka rzeczy', 'Poważne', 'Ignoruję je'] },
+     
+    { id: 'test', q: 'Ile dzieci?', opts: ['Żadnych', 'Jedno', 'Dwoje', 'Troje+', 'Ona chce więcej'] },
+    { id: 'test2', q: 'Jej plany zawodowe?', opts: ['Kariera priorytet', 'Balans', 'Zwolni tempo', 'W domu z dziećmi', 'Rzuci pracę'] },
+    { id: 'test3', q: 'Kto więcej zarabia teraz?', opts: ['Ja 3x+', 'Ja 2x', 'Podobnie', 'Ona więcej', 'Ona nie pracuje'] },
+    { id: 'test', q: 'Kto będzie żywicielem?', opts: ['Tylko ja', 'Głównie ja 70%', 'Ja 60%', 'Równo', 'Ona więcej'] },
+    { id: 'test', q: 'Jej długi?', opts: ['Brak', 'Małe', 'Kredyt studencki', 'Znaczne', 'Nie wiem'] },
+    { id: 'test', q: 'Jak wydaje pieniądze?', opts: ['Oszczędna', 'Zbalansowana', 'Lubi shopping', 'Luksusowe gusta', 'Impulsywna, długi'] },
+    { id: 'test', q: 'Przejrzystość finansowa?', opts: ['Pełna', 'Częściowa', 'Ograniczona', 'Tajemnicza'] },
+    { id: 'test', q: 'Kto naciska na ślub?', opts: ['Oboje równo', 'Ja bardziej', 'Ona bardziej', 'Ona ultimatum'] },
+    { id: 'test', q: 'Red flags?', opts: ['Brak', 'Drobne', 'Kilka rzeczy', 'Poważne', 'Ignoruję je'] },
+   
     { id: 'family_opinion', q: 'Opinia rodziny o niej?', opts: ['Kochają', 'Lubią', 'Neutralni', 'Obawy', 'Odradzają', 'Izoluje mnie'] },
     { id: 'living', q: 'Mieszkacie razem?', opts: ['Tak, ponad rok', 'Tak, krótko', 'Nie', 'Po ślubie dopiero'] }
   ];
