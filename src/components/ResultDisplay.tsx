@@ -102,6 +102,47 @@ const RecommendationList = ({ recs }) => {
   );
 };
 
+const TimelineCard = ({ period, tasks }) => (
+  <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+    <div className="flex items-center gap-2 mb-3">
+      <div className="bg-blue-600 text-white px-3 py-1 rounded-full font-bold text-sm">
+        {period}
+      </div>
+    </div>
+    <ul className="space-y-2">
+      {tasks.map((task, i) => (
+        <li key={i} className="flex items-start gap-2 text-gray-300">
+          <span className="text-blue-400 mt-1">•</span>
+          <span>{task}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
+const PsychologicalProfile = ({ title, traits }) => (
+  <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+    <h4 className="font-bold text-lg mb-3 text-blue-400">{title}</h4>
+    <div className="space-y-2">
+      {traits.map((trait, i) => (
+        <div key={i} className="text-gray-300">
+          <span className="font-semibold text-white">{trait.label}:</span> {trait.value}
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const BookRecommendation = ({ book }) => (
+  <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 hover:bg-gray-750 transition">
+    <div className="font-semibold text-white">{book.title}</div>
+    <div className="text-sm text-gray-400">{book.author}</div>
+    {book.description && (
+      <p className="text-xs text-gray-300 mt-2">{book.description}</p>
+    )}
+  </div>
+);
+
 const DebugMeta = ({ meta }) => {
  if (!meta) return null;
  return (
@@ -126,6 +167,10 @@ const ResultDisplay = ({ result, onRestart }) => {
     scenarios,
     actionItems,
     recommendations,
+    timeline,
+    readingList,
+    psychologicalProfiles,
+    conclusion,
     meta,
   } = result;
 
@@ -211,6 +256,75 @@ const ResultDisplay = ({ result, onRestart }) => {
             </div>
           </div>
         </div>
+
+        {/* Plan Działania - Oś Czasu */}
+        {timeline && (
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <FileText /> Plan Działania — Oś Czasu
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {timeline.days30 && <TimelineCard period="30 dni" tasks={timeline.days30} />}
+              {timeline.days90 && <TimelineCard period="90 dni" tasks={timeline.days90} />}
+              {timeline.days365 && <TimelineCard period="365 dni" tasks={timeline.days365} />}
+            </div>
+          </div>
+        )}
+
+        {/* Rekomendowane Lektury */}
+        {readingList && readingList.length > 0 && (
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <FileText /> Przydatne Lektury
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {readingList.map((book, i) => (
+                <BookRecommendation key={i} book={book} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Profile Psychologiczne */}
+        {psychologicalProfiles && (
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Brain /> Profile Psychologiczne
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {psychologicalProfiles.user && (
+                <PsychologicalProfile
+                  title="Twój Profil"
+                  traits={psychologicalProfiles.user}
+                />
+              )}
+              {psychologicalProfiles.partner && (
+                <PsychologicalProfile
+                  title="Profil Partnerki"
+                  traits={psychologicalProfiles.partner}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Zakończenie i CTA */}
+        {conclusion && (
+          <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6 border border-blue-700">
+            <div className="text-center">
+              <p className="text-lg text-gray-200 mb-4 leading-relaxed">
+                {conclusion.summary}
+              </p>
+              {conclusion.cta && (
+                <div className="mt-6">
+                  <button className="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-lg text-white font-bold text-lg shadow-lg transition transform hover:scale-105">
+                    {conclusion.cta}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Przyciski i meta */}
         <div className="flex flex-col md:flex-row gap-3 justify-between items-center">
