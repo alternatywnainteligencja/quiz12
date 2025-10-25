@@ -4,7 +4,8 @@
 import axios from 'axios';
 
 // Your published CSV URL (replace with your actual URL from "Publish to web")
-const PUBLISHED_CSV_URL = process.env.REACT_APP_SHEET_CSV_URL || '';
+// For Vite: use import.meta.env.VITE_* instead of process.env.REACT_APP_*
+const PUBLISHED_CSV_URL = import.meta.env.VITE_SHEET_CSV_URL || '';
 
 export interface QuestionOption {
   text: string;
@@ -23,7 +24,12 @@ export interface Question {
  */
 export async function fetchQuestionsFromSheets(): Promise<Question[]> {
   try {
-    const response = await axios.get(PUBLISHED_CSV_URL);
+    const response = await axios.get(PUBLISHED_CSV_URL, {
+      responseType: 'text',
+      headers: {
+        'Accept': 'text/csv; charset=utf-8'
+      }
+    });
     const csvData = response.data;
     
     // Split into lines and remove header
