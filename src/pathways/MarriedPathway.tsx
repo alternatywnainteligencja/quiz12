@@ -144,7 +144,7 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
     const loadQuestions = async () => {
       try {
         setLoading(true);
-        const fetchedQuestions = await fetchQuestionsWithCache();
+        const fetchedQuestions = await fetchQuestionsWithCache('married');
         setQuestions(fetchedQuestions);
         setError(null);
       } catch (err) {
