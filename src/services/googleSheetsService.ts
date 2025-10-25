@@ -3,9 +3,16 @@
 
 import axios from 'axios';
 
-// Your published CSV URL (replace with your actual URL from "Publish to web")
+// Your published CSV URLs for each pathway
 // For Vite: use import.meta.env.VITE_* instead of process.env.REACT_APP_*
-const PUBLISHED_CSV_URL = import.meta.env.VITE_SHEET_CSV_URL || '';
+const CSV_URLS = {
+  married: import.meta.env.VITE_SHEET_CSV_URL_MARRIED || '',
+  relationship: import.meta.env.VITE_SHEET_CSV_URL_RELATIONSHIP || '',
+  single: import.meta.env.VITE_SHEET_CSV_URL_SINGLE || '',
+  divorce: import.meta.env.VITE_SHEET_CSV_URL_DIVORCE || '',
+};
+
+export type PathwayType = 'married' | 'relationship' | 'single' | 'divorce';
 
 export interface QuestionOption {
   text: string;
@@ -21,8 +28,14 @@ export interface Question {
 /**
  * Fetches questions from published Google Sheets CSV
  * FREE - No API key required!
+ * @param pathway - The pathway type (married, relationship, single, divorce)
  */
-export async function fetchQuestionsFromSheets(): Promise<Question[]> {
+export async function fetchQuestionsFromSheets(pathway: PathwayType): Promise<Question[]> {
+  const csvUrl = CSV_URLS[pathway];
+  
+  if (!csvUrl) {
+    throw new Error(`No CSV URL configured for pathway: ${pathway}`);
+  }
   try {
     const response = await axios.get(PUBLISHED_CSV_URL, {
       responseType: 'text',
