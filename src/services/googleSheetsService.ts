@@ -6,13 +6,13 @@ import axios from 'axios';
 // Your published CSV URLs for each pathway
 // For Vite: use import.meta.env.VITE_* instead of process.env.REACT_APP_*
 const CSV_URLS = {
-  married: import.meta.env.VITE_SHEET_CSV_URL_MARRIED || '',
-  relationship: import.meta.env.VITE_SHEET_CSV_URL_RELATIONSHIP || '',
-  single: import.meta.env.VITE_SHEET_CSV_URL_SINGLE || '',
+  before: import.meta.env.VITE_SHEET_CSV_URL_BEFORE || '',
+  crisis: import.meta.env.VITE_SHEET_CSV_URL_CRISIS || '',
   divorce: import.meta.env.VITE_SHEET_CSV_URL_DIVORCE || '',
+  married: import.meta.env.VITE_SHEET_CSV_URL_MARRIED || '',
 };
 
-export type PathwayType = 'married' | 'relationship' | 'single' | 'divorce';
+export type PathwayType = 'before' | 'crisis' | 'divorce' | 'married';
 
 export interface QuestionOption {
   text: string;
@@ -37,13 +37,16 @@ export async function fetchQuestionsFromSheets(pathway: PathwayType): Promise<Qu
     throw new Error(`No CSV URL configured for pathway: ${pathway}`);
   }
   try {
-    const response = await axios.get(PUBLISHED_CSV_URL, {
-      responseType: 'text',
+    const response = await axios.get(csvUrl, {
+      responseType: 'arraybuffer', // Pobierz jako binary
       headers: {
         'Accept': 'text/csv; charset=utf-8'
       }
     });
-    const csvData = response.data;
+    
+    // Dekoduj UTF-8 ręcznie
+    const decoder = new TextDecoder('utf-8');
+    const csvData = decoder.decode(response.data);
     
     // Split into lines and remove header
     const lines = csvData.trim().split('\n');
@@ -149,22 +152,27 @@ function parseCSVLine(line: string): string[] {
 /**
  * Cache questions to avoid repeated requests
  */
-let cachedQuestions: Question[] | null = null;
-let cacheTimestamp: number = 0;
+const questionCache: Record<PathwayType, { questions: Question[]; timestamp: number } | null> = {
+  before: null,
+  crisis: null,
+  divorce: null,
+  married: null,
+};
+
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-export async function fetchQuestionsWithCache(): Promise<Question[]> {
+export async function fetchQuestionsWithCache(pathway: PathwayType): Promise<Question[]> {
   const now = Date.now();
+  const cached = questionCache[pathway];
   
-  if (cachedQuestions && (now - cacheTimestamp) < CACHE_DURATION) {
-    console.log('Using cached questions');
-    return cachedQuestions;
+  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+    console.log(`Using cached questions for ${pathway}`);
+    return cached.questions;
   }
   
-  console.log('Fetching fresh questions from Google Sheets');
-  const questions = await fetchQuestionsFromSheets();
-  cachedQuestions = questions;
-  cacheTimestamp = now;
+  console.log(`Fetching fresh questions from Google Sheets for ${pathway}`);
+  const questions = await fetchQuestionsFromSheets(pathway);
+  questionCache[pathway] = { questions, timestamp: now };
   
   return questions;
 }
@@ -172,7 +180,13 @@ export async function fetchQuestionsWithCache(): Promise<Question[]> {
 /**
  * Clear the cache manually if needed
  */
-export function clearQuestionsCache(): void {
-  cachedQuestions = null;
-  cacheTimestamp = 0;
+export function clearQuestionsCache(pathway?: PathwayType): void {
+  if (pathway) {
+    questionCache[pathway] = null;
+  } else {
+    // Clear all
+    Object.keys(questionCache).forEach(key => {
+      questionCache[key as PathwayType] = null;
+    });
+  }
 }
