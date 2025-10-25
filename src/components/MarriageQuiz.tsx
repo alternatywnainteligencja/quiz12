@@ -1,58 +1,242 @@
-import React, { useState } from 'react';
-import { Heart } from 'lucide-react';
-import BeforePathway from '../pathways/BeforePathway';
-import MarriedPathway from '../pathways/MarriedPathway';
-import CrisisPathway from '../pathways/CrisisPathway';
-import DivorcePathway from '../pathways/DivorcePathway';
-import ResultDisplay from './ResultDisplay';
+import React, { useState, useEffect } from 'react';
+import QuestionScreen from '../components/QuestionScreen';
+import { calculateMarried } from '../calculations/calculations';
+import { fetchQuestionsWithCache, Question, QuestionOption } from '../services/googleSheetsService';
 
-const MarriageQuiz = () => {
-  const [pathway, setPathway] = useState<string | null>(null);
-  const [result, setResult] = useState<any>(null);
+interface MarriedPathwayProps {
+  onResult: (result: any) => void;
+  onBack: () => void;
+}
 
-  if (result) {
-    return <ResultDisplay result={result} onRestart={() => { setResult(null); setPathway(null); }} />;
-  }
+const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => {
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!pathway) {
+  // Fallback questions (your original hardcoded questions with conditional navigation)
+  const fallbackQuestions: Question[] = [
+    { id: 'years', q: 'Ile lat w małżeństwie?', opts: [
+      { text: '<1 rok' }, 
+      { text: '1-2 lata' }, 
+      { text: '2-5 lat' }, 
+      { text: '5-10 lat' }, 
+      { text: '10-15 lat' }, 
+      { text: '15+ lat' }
+    ]},
+    { id: 'prenup', q: 'Intercyza?', opts: [
+      { text: 'Tak, przed ślubem' }, 
+      { text: 'Tak, po ślubie' }, 
+      { text: 'Nie mamy' }, 
+      { text: 'Próbuję wprowadzić' }
+    ]},
+    { id: 'kids', q: 'Dzieci?', opts: [
+      { text: 'Nie' }, 
+      { text: 'W ciąży' }, 
+      { text: 'Tak' }
+    ]},
+    { id: 'quality', q: 'Jakość małżeństwa?', opts: [
+      { text: 'Świetne' }, 
+      { text: 'Dobre' }, 
+      { text: 'OK, rutyna' }, 
+      { text: 'Pogarsza się' }, 
+      { text: 'Źle' }, 
+      { text: 'Katastrofa' }
+    ]},
+    { id: 'sex', q: 'Życie seksualne?', opts: [
+      { text: 'Świetne' }, 
+      { text: 'Dobre' }, 
+      { text: 'Rzadziej' }, 
+      { text: 'Rzadko' }, 
+      { text: 'Prawie nie ma' }, 
+      { text: 'Z obowiązku' }
+    ]},
+    { id: 'emotional', q: 'Połączenie emocjonalne?', opts: [
+      { text: 'Silne' }, 
+      { text: 'Przeciętne' }, 
+      { text: 'Słabe' }, 
+      { text: 'Jak współlokatorzy' }, 
+      { text: 'Jak obcy' }
+    ]},
+    { id: 'my_cheat', q: 'Czy ty zdradzałeś?', opts: [
+      { text: 'Nigdy' }, 
+      { text: 'Raz dawno' }, 
+      { text: 'Kilka razy' }, 
+      { text: 'Romans' }, 
+      { text: 'Mam drugą relację' }
+    ]},
+    { id: 'her_cheat', q: 'Czy ona zdradza?', opts: [
+      { text: 'Nie, ufam' }, 
+      { text: 'Chyba nie' }, 
+      { text: 'Podejrzenia' }, 
+      { text: 'Prawdopodobnie' }, 
+      { text: 'Wiem o jednej' }, 
+      { text: 'Wielokrotnie' }, 
+      { text: 'Ma kochanka' }
+    ]},
+    { id: 'income', q: 'Kto więcej zarabia?', opts: [
+      { text: 'Tylko ja' }, 
+      { text: 'Ja 3x+' }, 
+      { text: 'Ja 2x' }, 
+      { text: 'Podobnie' }, 
+      { text: 'Ona więcej' }
+    ]},
+    { id: 'finance_control', q: 'Kto kontroluje finanse?', opts: [
+      { text: 'Ja' }, 
+      { text: 'Wspólnie' }, 
+      { text: 'Ona' }, 
+      { text: 'Osobne' }
+    ]},
+    { id: 'property', q: 'Główne mieszkanie?', opts: [
+      { text: 'Moje sprzed' }, 
+      { text: 'Jej sprzed' }, 
+      { text: 'Wspólne' }, 
+      { text: 'Kredyt w małżeństwie' }, 
+      { text: 'Wynajem' }
+    ]},
+    { id: 'assets', q: 'Inne aktywa?', opts: [
+      { text: 'Brak' }, 
+      { text: 'Oszczędności' }, 
+      { text: 'Inwestycje' }, 
+      { text: 'Firma' }, 
+      { text: 'Nieruchomości' }, 
+      { text: 'Kilka' }
+    ]},
+    { id: 'conflicts', q: 'Jak często kłótnie?', opts: [
+      { text: 'Rzadko' }, 
+      { text: 'Czasami' }, 
+      { text: 'Często' }, 
+      { text: 'Bardzo często' }, 
+      { text: 'Codziennie' }
+    ]},
+    { id: 'her_change', q: 'Zmiana w jej zachowaniu?', opts: [
+      { text: 'Nie' }, 
+      { text: 'Na lepsze' }, 
+      { text: 'Na gorsze' }, 
+      { text: 'Dystansowa' }, 
+      { text: 'Wroga' }
+    ]},
+    { id: 'paternity', q: 'Pewność ojcostwa? (jeśli dzieci)', opts: [
+      { text: 'Pewien' }, 
+      { text: 'Prawie pewien' }, 
+      { text: 'Wątpliwości' }, 
+      { text: 'Test - OK' }, 
+      { text: 'Test - nie moje' }, 
+      { text: 'Boję się' }
+    ]},
+    // Example with conditional navigation
+    { id: 'who_filed', q: 'Kto złożył pozew?', opts: [
+      { text: 'Ja' }, 
+      { text: 'Ona' }, 
+      { text: 'Wspólny' }, 
+      { text: 'Jeszcze nie złożony', next: 'she_knows' }
+    ]},
+    { id: 'she_knows', q: 'Czy ona wie o twoich planach?', opts: [
+      { text: 'Tak' }, 
+      { text: 'Nie' }, 
+      { text: 'Podejrzewa' }
+    ]}
+  ];
+
+  // Fetch questions on component mount
+  useEffect(() => {
+    const loadQuestions = async () => {
+      try {
+        setLoading(true);
+        const fetchedQuestions = await fetchQuestionsWithCache();
+        setQuestions(fetchedQuestions);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch questions, using fallback:', err);
+        setError('Używam lokalnych pytań');
+        setQuestions(fallbackQuestions);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadQuestions();
+  }, []);
+
+  const handleAnswer = (value: string) => {
+    const currentQuestion = questions[step];
+    const newAnswers = { ...answers, [currentQuestion.id]: value };
+    setAnswers(newAnswers);
+
+    // Find the chosen option - handle both string and QuestionOption format
+    const chosenOpt = currentQuestion.opts.find(opt =>
+      typeof opt === 'string' ? opt === value : opt.text === value
+    );
+
+    let nextStep = step + 1; // Default: go to next question in sequence
+
+    // Check if the chosen option has conditional navigation
+    if (chosenOpt && typeof chosenOpt === 'object' && chosenOpt.next) {
+      const nextIndex = questions.findIndex(q => q.id === chosenOpt.next);
+      if (nextIndex !== -1) {
+        nextStep = nextIndex;
+      } else {
+        console.warn(`Next question with id "${chosenOpt.next}" not found. Proceeding to next question.`);
+      }
+    }
+
+    // Continue to next question or finish quiz
+    if (nextStep < questions.length) {
+      setStep(nextStep);
+    } else {
+      const res = calculateMarried(newAnswers);
+      onResult(res);
+    }
+  };
+
+  // Show loading state
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white p-4">
-        <div className="max-w-2xl mx-auto py-8">
-          <div className="bg-gray-800 rounded-lg shadow-2xl p-8 border border-gray-700">
-            <div className="flex items-center justify-center gap-3 mb-8">
-              <Heart className="text-red-500" size={32} />
-              <h1 className="text-3xl font-bold">Analiza sytuacji małżeńskiej</h1>
-            </div>
-            <div className="space-y-4">
-              <button onClick={() => setPathway('before')} className="w-full bg-blue-600 hover:bg-blue-700 text-left p-6 rounded-lg transition-colors border-2 border-blue-500">
-                <h3 className="text-xl font-bold mb-2">💍 Planuję wziąć ślub</h3>
-                <p className="text-gray-300 text-sm">Przed ślubem - ocena sytuacji</p>
-              </button>
-              <button onClick={() => setPathway('married')} className="w-full bg-green-600 hover:bg-green-700 text-left p-6 rounded-lg transition-colors border-2 border-green-500">
-                <h3 className="text-xl font-bold mb-2">💚 Jestem w małżeństwie</h3>
-                <p className="text-gray-300 text-sm">Po ślubie - ocena bieżącej sytuacji</p>
-              </button>
-              <button onClick={() => setPathway('crisis')} className="w-full bg-orange-600 hover:bg-orange-700 text-left p-6 rounded-lg transition-colors border-2 border-orange-500">
-                <h3 className="text-xl font-bold mb-2">⚠️ Małżeństwo w kryzysie</h3>
-                <p className="text-gray-300 text-sm">Poważne problemy, rozważasz rozwód</p>
-              </button>
-              <button onClick={() => setPathway('divorce')} className="w-full bg-red-600 hover:bg-red-700 text-left p-6 rounded-lg transition-colors border-2 border-red-500">
-                <h3 className="text-xl font-bold mb-2">⚖️ W trakcie rozwodu</h3>
-                <p className="text-gray-300 text-sm">Proces rozwodowy już trwa</p>
-              </button>
-            </div>
-          </div>
-        </div>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '1rem'
+      }}>
+        <div style={{ fontSize: '2rem' }}>⏳</div>
+        <div>Ładowanie pytań...</div>
       </div>
     );
   }
 
-  if (pathway === 'before') return <BeforePathway onResult={setResult} onBack={() => setPathway(null)} />;
-  if (pathway === 'married') return <MarriedPathway onResult={setResult} onBack={() => setPathway(null)} />;
-  if (pathway === 'crisis') return <CrisisPathway onResult={setResult} onBack={() => setPathway(null)} />;
-  if (pathway === 'divorce') return <DivorcePathway onResult={setResult} onBack={() => setPathway(null)} />;
+  // Current question
+  const q = questions[step];
+  const progress = ((step + 1) / questions.length) * 100;
 
-  return null;
+  return (
+    <>
+      {error && (
+        <div style={{ 
+          padding: '0.5rem', 
+          backgroundColor: '#fff3cd', 
+          color: '#856404',
+          textAlign: 'center',
+          fontSize: '0.875rem'
+        }}>
+          ⚠️ {error}
+        </div>
+      )}
+      <QuestionScreen
+        title="💚 W małżeństwie"
+        question={q.q}
+        options={q.opts.map(opt => typeof opt === 'string' ? opt : opt.text)}
+        onAnswer={handleAnswer}
+        onBack={step > 0 ? () => setStep(step - 1) : onBack}
+        progress={progress}
+        step={step + 1}
+        total={questions.length}
+        color="green"
+      />
+    </>
+  );
 };
 
-export default MarriageQuiz;
+export default MarriedPathway;
