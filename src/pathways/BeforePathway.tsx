@@ -16,7 +16,7 @@ const BeforePathway: React.FC<BeforePathwayProps> = ({ onResult, onBack }) => {
   const [error, setError] = useState<string | null>(null);
   const [calculating, setCalculating] = useState(false);
 
-  // Fallback questions - na wypadek gdyby Google Sheets nie działał
+  // Fallback questions - pełne przykłady dla ścieżki "przed ślubem"
   const fallbackQuestions: Question[] = [
     { 
       id: '1', 
@@ -30,10 +30,51 @@ const BeforePathway: React.FC<BeforePathwayProps> = ({ onResult, onBack }) => {
         { text: 'Milczę demonstracyjnie lub wychodzę, żeby „dać jej nauczkę".' }
       ]
     },
-    // Dodaj tutaj resztę swoich fallback pytań jeśli chcesz
+    {
+      id: '2',
+      q: 'Jak często wasza komunikacja wygląda jak „chodzenie po jajkach"?',
+      opts: [
+        { text: 'Prawie nigdy - mówimy otwarcie' },
+        { text: 'Czasami unikam trudnych tematów' },
+        { text: 'Często - boję się jej reakcji' },
+        { text: 'Zawsze - czuję napięcie w każdej rozmowie' }
+      ]
+    },
+    {
+      id: '3',
+      q: 'Czy partnerka respektuje Twoje granice i potrzeby?',
+      opts: [
+        { text: 'Tak, zawsze' },
+        { text: 'Przeważnie tak' },
+        { text: 'Czasami ignoruje moje potrzeby' },
+        { text: 'Często narzuca swoją wolę' },
+        { text: 'W ogóle nie respektuje moich granic' }
+      ]
+    },
+    {
+      id: '4',
+      q: 'Jak wygląda wasza intymność fizyczna?',
+      opts: [
+        { text: 'Satysfakcjonująca dla obojga' },
+        { text: 'Dobra, ale mogłaby być lepsza' },
+        { text: 'Sporadyczna, brak inicjatywy z jej strony' },
+        { text: 'Używa seksu jako narzędzia nagrody/kary' },
+        { text: 'Prawie nie ma intymności' }
+      ]
+    },
+    {
+      id: '5',
+      q: 'Czy myślałeś kiedyś: "To nie jest ta osoba, z którą chcę spędzić życie"?',
+      opts: [
+        { text: 'Nigdy' },
+        { text: 'Rzadko, w trudnych momentach' },
+        { text: 'Czasami to myślę' },
+        { text: 'Często mam takie myśli' },
+        { text: 'Codziennie o tym myślę' }
+      ]
+    }
   ];
 
-  // Fetch questions on component mount
   useEffect(() => {
     const loadQuestions = async () => {
       try {
@@ -62,33 +103,31 @@ const BeforePathway: React.FC<BeforePathwayProps> = ({ onResult, onBack }) => {
 
     console.log(`Question ${currentQuestion.id}: "${value}"`);
 
-    // Sprawdź czy wybrana opcja ma warunkowe przejście (next)
     const chosenOpt = currentQuestion.opts.find(opt =>
       typeof opt === 'string' ? opt === value : opt.text === value
     );
 
     let nextStep = step + 1;
 
-    // Jeśli opcja ma defined "next", skocz do tego pytania
     if (chosenOpt && typeof chosenOpt === 'object' && chosenOpt.next) {
       const nextIndex = questions.findIndex(q => q.id === chosenOpt.next);
       if (nextIndex !== -1) {
         nextStep = nextIndex;
         console.log(`Conditional jump to question: ${chosenOpt.next}`);
+      } else {
+        console.warn(`Next question with id "${chosenOpt.next}" not found. Proceeding to next question.`);
       }
     }
 
-    // Jeśli są jeszcze pytania, idź dalej
     if (nextStep < questions.length) {
       setStep(nextStep);
     } else {
-      // Koniec quizu - oblicz wyniki
       console.log('Quiz completed! Calculating results...');
       console.log('Answers:', newAnswers);
       
       try {
         setCalculating(true);
-        const res = await calculateBefore(newAnswers); // ASYNC - czeka na wagi z Google Sheets
+        const res = await calculateBefore(newAnswers);
         console.log('Calculation result:', res);
         onResult(res);
       } catch (err) {
@@ -101,21 +140,16 @@ const BeforePathway: React.FC<BeforePathwayProps> = ({ onResult, onBack }) => {
 
   const handleBack = () => {
     if (step > 0) {
-      // Cofnij się do poprzedniego pytania
       setStep(step - 1);
-      
-      // Usuń odpowiedź na bieżące pytanie z answers
       const currentQuestionId = questions[step].id;
       const newAnswers = { ...answers };
       delete newAnswers[currentQuestionId];
       setAnswers(newAnswers);
     } else {
-      // Jeśli jesteśmy na pierwszym pytaniu, wróć do wyboru ścieżki
       onBack();
     }
   };
 
-  // Loading state
   if (loading) {
     return (
       <div style={{ 
@@ -139,7 +173,6 @@ const BeforePathway: React.FC<BeforePathwayProps> = ({ onResult, onBack }) => {
     );
   }
 
-  // Calculating results state
   if (calculating) {
     return (
       <div style={{ 
