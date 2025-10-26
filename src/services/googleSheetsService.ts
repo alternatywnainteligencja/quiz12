@@ -1,15 +1,14 @@
-// src/services/googleSheetsService.ts
 // FREE VERSION - No API key needed!
 
 import axios from 'axios';
 
 // Your published CSV URLs for each pathway
-// For Vite: use import.meta.env.VITE_* instead of process.env.REACT_APP_*
 const CSV_URLS = {
   before: import.meta.env.VITE_SHEET_CSV_URL_BEFORE || '',
   crisis: import.meta.env.VITE_SHEET_CSV_URL_CRISIS || '',
   divorce: import.meta.env.VITE_SHEET_CSV_URL_DIVORCE || '',
   married: import.meta.env.VITE_SHEET_CSV_URL_MARRIED || '',
+  weights: import.meta.env.VITE_SHEET_CSV_URL_WEIGHTS || '', // NOWY!
 };
 
 export type PathwayType = 'before' | 'crisis' | 'divorce' | 'married';
@@ -25,10 +24,24 @@ export interface Question {
   opts: (string | QuestionOption)[];
 }
 
+// NOWE TYPY DLA WAG
+export interface RiskWeight {
+  questionId: string; // ID pytania (np. "1")
+  questionText: string; // Tekst pytania
+  answer: string; // Dokładny tekst odpowiedzi
+  riskPoints: number; // Punkty ryzyka (0-10)
+  mainRisk: string; // Ryzyko główne (np. "Rozstanie/Rozwód")
+  sideRisks: string[]; // Ryzyka poboczne (array)
+  comment?: string; // Opcjonalny komentarz
+}
+
+export interface WeightsData {
+  weights: RiskWeight[];
+  riskCategories: string[]; // Unikalne kategorie ryzyk
+}
+
 /**
  * Fetches questions from published Google Sheets CSV
- * FREE - No API key required!
- * @param pathway - The pathway type (married, relationship, single, divorce)
  */
 export async function fetchQuestionsFromSheets(pathway: PathwayType): Promise<Question[]> {
   const csvUrl = CSV_URLS[pathway];
@@ -38,24 +51,20 @@ export async function fetchQuestionsFromSheets(pathway: PathwayType): Promise<Qu
   }
   try {
     const response = await axios.get(csvUrl, {
-      responseType: 'arraybuffer', // Pobierz jako binary
+      responseType: 'arraybuffer',
       headers: {
         'Accept': 'text/csv; charset=utf-8'
       }
     });
     
-    // Dekoduj UTF-8 ręcznie
     const decoder = new TextDecoder('utf-8');
     const csvData = decoder.decode(response.data);
-    
-    // Split into lines and remove header
     const lines = csvData.trim().split('\n');
-    const dataLines = lines.slice(1); // Skip header row
+    const dataLines = lines.slice(1);
     
     const questions: Question[] = dataLines
       .filter((line: string) => line.trim())
       .map((line: string) => {
-        // Parse CSV line
         const columns = parseCSVLine(line);
         
         if (columns.length < 3) {
@@ -65,17 +74,14 @@ export async function fetchQuestionsFromSheets(pathway: PathwayType): Promise<Qu
         
         const [id, question, optionsStr, nextConditionsStr = ''] = columns;
         
-        // Parse options - split by | delimiter
         const optionsArray = optionsStr
           .split('|')
           .map(opt => opt.trim())
           .filter(opt => opt.length > 0);
 
-        // Parse next conditions if they exist
         let opts: QuestionOption[] = [];
         
         if (nextConditionsStr && nextConditionsStr.trim()) {
-          // Format: "option1->nextId1;option2->nextId2"
           const conditions = nextConditionsStr.split(';').map(c => c.trim());
           const nextMap: Record<string, string> = {};
           
@@ -86,7 +92,6 @@ export async function fetchQuestionsFromSheets(pathway: PathwayType): Promise<Qu
             }
           });
 
-          // Convert to QuestionOption format
           opts = optionsArray.map(opt => {
             if (nextMap[opt]) {
               return { text: opt, next: nextMap[opt] };
@@ -94,7 +99,6 @@ export async function fetchQuestionsFromSheets(pathway: PathwayType): Promise<Qu
             return { text: opt };
           });
         } else {
-          // No conditions - return all as objects for consistency
           opts = optionsArray.map(opt => ({ text: opt }));
         }
 
@@ -118,6 +122,89 @@ export async function fetchQuestionsFromSheets(pathway: PathwayType): Promise<Qu
 }
 
 /**
+ * NOWA FUNKCJA: Pobiera wagi/ryzyko z arkusza
+ * Format CSV: Question | Odpowiedź | Punkty ryzyka | Ryzyko główne | Ryzyka poboczne | Komentarz
+ */
+export async function fetchWeightsFromSheets(): Promise<WeightsData> {
+  const csvUrl = CSV_URLS.weights;
+  
+  if (!csvUrl) {
+    throw new Error('No weights CSV URL configured');
+  }
+
+  try {
+    const response = await axios.get(csvUrl, {
+      responseType: 'arraybuffer',
+      headers: {
+        'Accept': 'text/csv; charset=utf-8'
+      }
+    });
+    
+    const decoder = new TextDecoder('utf-8');
+    const csvData = decoder.decode(response.data);
+    const lines = csvData.trim().split('\n');
+    const dataLines = lines.slice(1); // Skip header
+    
+    const weights: RiskWeight[] = [];
+    const riskCategoriesSet = new Set<string>();
+
+    dataLines.forEach((line: string) => {
+      if (!line.trim()) return;
+      
+      const columns = parseCSVLine(line);
+      
+      if (columns.length < 5) {
+        console.warn('Invalid weight row:', line);
+        return;
+      }
+
+      const [
+        questionId,
+        questionText,
+        answer,
+        riskPointsStr,
+        mainRisk,
+        sideRisksStr = '',
+        comment = ''
+      ] = columns;
+
+      // Parse risk points
+      const riskPoints = parseInt(riskPointsStr.trim()) || 0;
+
+      // Parse side risks (separated by commas)
+      const sideRisks = sideRisksStr
+        .split(',')
+        .map(r => r.trim())
+        .filter(r => r.length > 0 && r !== '-');
+
+      // Add to categories
+      if (mainRisk && mainRisk.trim() !== '-') {
+        riskCategoriesSet.add(mainRisk.trim());
+      }
+      sideRisks.forEach(r => riskCategoriesSet.add(r));
+
+      weights.push({
+        questionId: questionId.trim(),
+        questionText: questionText.trim(),
+        answer: answer.trim(),
+        riskPoints,
+        mainRisk: mainRisk.trim(),
+        sideRisks,
+        comment: comment.trim()
+      });
+    });
+
+    return {
+      weights,
+      riskCategories: Array.from(riskCategoriesSet).filter(c => c !== '-')
+    };
+  } catch (error) {
+    console.error('Error fetching weights from Google Sheets:', error);
+    throw error;
+  }
+}
+
+/**
  * Parse a CSV line handling quoted strings properly
  */
 function parseCSVLine(line: string): string[] {
@@ -130,10 +217,9 @@ function parseCSVLine(line: string): string[] {
     const nextChar = line[i + 1];
     
     if (char === '"') {
-      // Handle double quotes "" as escaped quote
       if (inQuotes && nextChar === '"') {
         current += '"';
-        i++; // Skip next quote
+        i++;
       } else {
         inQuotes = !inQuotes;
       }
@@ -159,6 +245,9 @@ const questionCache: Record<PathwayType, { questions: Question[]; timestamp: num
   married: null,
 };
 
+// NOWY CACHE DLA WAG
+let weightsCache: { data: WeightsData; timestamp: number } | null = null;
+
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export async function fetchQuestionsWithCache(pathway: PathwayType): Promise<Question[]> {
@@ -178,15 +267,41 @@ export async function fetchQuestionsWithCache(pathway: PathwayType): Promise<Que
 }
 
 /**
+ * NOWA FUNKCJA: Cache dla wag
+ */
+export async function fetchWeightsWithCache(): Promise<WeightsData> {
+  const now = Date.now();
+  
+  if (weightsCache && (now - weightsCache.timestamp) < CACHE_DURATION) {
+    console.log('Using cached weights');
+    return weightsCache.data;
+  }
+  
+  console.log('Fetching fresh weights from Google Sheets');
+  const data = await fetchWeightsFromSheets();
+  weightsCache = { data, timestamp: now };
+  
+  return data;
+}
+
+/**
  * Clear the cache manually if needed
  */
 export function clearQuestionsCache(pathway?: PathwayType): void {
   if (pathway) {
     questionCache[pathway] = null;
   } else {
-    // Clear all
     Object.keys(questionCache).forEach(key => {
       questionCache[key as PathwayType] = null;
     });
   }
+}
+
+export function clearWeightsCache(): void {
+  weightsCache = null;
+}
+
+export function clearAllCaches(): void {
+  clearQuestionsCache();
+  clearWeightsCache();
 }
