@@ -14,129 +14,42 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [calculating, setCalculating] = useState(false);
 
-  // Fallback questions (your original hardcoded questions with conditional navigation)
+  // Fallback questions - pełna wersja z Twoimi przykładami
   const fallbackQuestions: Question[] = [
-    { id: 'years', q: 'Ile lat w małżeństwie?', opts: [
-      { text: '<1 rok' }, 
-      { text: '1-2 lata' }, 
-      { text: '2-5 lat' }, 
-      { text: '5-10 lat' }, 
-      { text: '10-15 lat' }, 
-      { text: '15+ lat' }
-    ]},
-    { id: 'prenup', q: 'Intercyza?', opts: [
-      { text: 'Tak, przed ślubem' }, 
-      { text: 'Tak, po ślubie' }, 
-      { text: 'Nie mamy' }, 
-      { text: 'Próbuję wprowadzić' }
-    ]},
-    { id: 'kids', q: 'Dzieci?', opts: [
-      { text: 'Nie' }, 
-      { text: 'W ciąży' }, 
-      { text: 'Tak' }
-    ]},
-    { id: 'quality', q: 'Jakość małżeństwa?', opts: [
-      { text: 'Świetne' }, 
-      { text: 'Dobre' }, 
-      { text: 'OK, rutyna' }, 
-      { text: 'Pogarsza się' }, 
-      { text: 'Źle' }, 
-      { text: 'Katastrofa' }
-    ]},
-    { id: 'sex', q: 'Życie seksualne?', opts: [
-      { text: 'Świetne' }, 
-      { text: 'Dobre' }, 
-      { text: 'Rzadziej' }, 
-      { text: 'Rzadko' }, 
-      { text: 'Prawie nie ma' }, 
-      { text: 'Z obowiązku' }
-    ]},
-    { id: 'emotional', q: 'Połączenie emocjonalne?', opts: [
-      { text: 'Silne' }, 
-      { text: 'Przeciętne' }, 
-      { text: 'Słabe' }, 
-      { text: 'Jak współlokatorzy' }, 
-      { text: 'Jak obcy' }
-    ]},
-    { id: 'my_cheat', q: 'Czy ty zdradzałeś?', opts: [
-      { text: 'Nigdy' }, 
-      { text: 'Raz dawno' }, 
-      { text: 'Kilka razy' }, 
-      { text: 'Romans' }, 
-      { text: 'Mam drugą relację' }
-    ]},
-    { id: 'her_cheat', q: 'Czy ona zdradza?', opts: [
-      { text: 'Nie, ufam' }, 
-      { text: 'Chyba nie' }, 
-      { text: 'Podejrzenia' }, 
-      { text: 'Prawdopodobnie' }, 
-      { text: 'Wiem o jednej' }, 
-      { text: 'Wielokrotnie' }, 
-      { text: 'Ma kochanka' }
-    ]},
-    { id: 'income', q: 'Kto więcej zarabia?', opts: [
-      { text: 'Tylko ja' }, 
-      { text: 'Ja 3x+' }, 
-      { text: 'Ja 2x' }, 
-      { text: 'Podobnie' }, 
-      { text: 'Ona więcej' }
-    ]},
-    { id: 'finance_control', q: 'Kto kontroluje finanse?', opts: [
-      { text: 'Ja' }, 
-      { text: 'Wspólnie' }, 
-      { text: 'Ona' }, 
-      { text: 'Osobne' }
-    ]},
-    { id: 'property', q: 'Główne mieszkanie?', opts: [
-      { text: 'Moje sprzed' }, 
-      { text: 'Jej sprzed' }, 
-      { text: 'Wspólne' }, 
-      { text: 'Kredyt w małżeństwie' }, 
-      { text: 'Wynajem' }
-    ]},
-    { id: 'assets', q: 'Inne aktywa?', opts: [
-      { text: 'Brak' }, 
-      { text: 'Oszczędności' }, 
-      { text: 'Inwestycje' }, 
-      { text: 'Firma' }, 
-      { text: 'Nieruchomości' }, 
-      { text: 'Kilka' }
-    ]},
-    { id: 'conflicts', q: 'Jak często kłótnie?', opts: [
-      { text: 'Rzadko' }, 
-      { text: 'Czasami' }, 
-      { text: 'Często' }, 
-      { text: 'Bardzo często' }, 
-      { text: 'Codziennie' }
-    ]},
-    { id: 'her_change', q: 'Zmiana w jej zachowaniu?', opts: [
-      { text: 'Nie' }, 
-      { text: 'Na lepsze' }, 
-      { text: 'Na gorsze' }, 
-      { text: 'Dystansowa' }, 
-      { text: 'Wroga' }
-    ]},
-    { id: 'paternity', q: 'Pewność ojcostwa? (jeśli dzieci)', opts: [
-      { text: 'Pewien' }, 
-      { text: 'Prawie pewien' }, 
-      { text: 'Wątpliwości' }, 
-      { text: 'Test - OK' }, 
-      { text: 'Test - nie moje' }, 
-      { text: 'Boję się' }
-    ]},
+    { 
+      id: 'paternity', 
+      q: 'Pewność ojcostwa? (jeśli dzieci)', 
+      opts: [
+        { text: 'Pewien' }, 
+        { text: 'Prawie pewien' }, 
+        { text: 'Wątpliwości' }, 
+        { text: 'Test - OK' }, 
+        { text: 'Test - nie moje' }, 
+        { text: 'Boję się' }
+      ]
+    },
     // Example with conditional navigation
-    { id: 'who_filed', q: 'Kto złożył pozew?', opts: [
-      { text: 'Ja' }, 
-      { text: 'Ona' }, 
-      { text: 'Wspólny' }, 
-      { text: 'Jeszcze nie złożony', next: 'she_knows' }
-    ]},
-    { id: 'she_knows', q: 'Czy ona wie o twoich planach?', opts: [
-      { text: 'Tak' }, 
-      { text: 'Nie' }, 
-      { text: 'Podejrzewa' }
-    ]}
+    { 
+      id: 'who_filed', 
+      q: 'Kto złożył pozew?', 
+      opts: [
+        { text: 'Ja' }, 
+        { text: 'Ona' }, 
+        { text: 'Wspólny' }, 
+        { text: 'Jeszcze nie złożony', next: 'she_knows' }
+      ]
+    },
+    { 
+      id: 'she_knows', 
+      q: 'Czy ona wie o twoich planach?', 
+      opts: [
+        { text: 'Tak' }, 
+        { text: 'Nie' }, 
+        { text: 'Podejrzewa' }
+      ]
+    }
   ];
 
   // Fetch questions on component mount
@@ -144,12 +57,14 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
     const loadQuestions = async () => {
       try {
         setLoading(true);
+        console.log('Fetching questions for "married" pathway...');
         const fetchedQuestions = await fetchQuestionsWithCache('married');
+        console.log(`Loaded ${fetchedQuestions.length} questions`);
         setQuestions(fetchedQuestions);
         setError(null);
       } catch (err) {
         console.error('Failed to fetch questions, using fallback:', err);
-        setError('Używam lokalnych pytań');
+        setError('Używam lokalnych pytań (problem z połączeniem do Google Sheets)');
         setQuestions(fallbackQuestions);
       } finally {
         setLoading(false);
@@ -159,10 +74,12 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
     loadQuestions();
   }, []);
 
-  const handleAnswer = (value: string) => {
+  const handleAnswer = async (value: string) => {
     const currentQuestion = questions[step];
     const newAnswers = { ...answers, [currentQuestion.id]: value };
     setAnswers(newAnswers);
+
+    console.log(`Question ${currentQuestion.id}: "${value}"`);
 
     // Find the chosen option - handle both string and QuestionOption format
     const chosenOpt = currentQuestion.opts.find(opt =>
@@ -176,6 +93,7 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
       const nextIndex = questions.findIndex(q => q.id === chosenOpt.next);
       if (nextIndex !== -1) {
         nextStep = nextIndex;
+        console.log(`Conditional jump to question: ${chosenOpt.next}`);
       } else {
         console.warn(`Next question with id "${chosenOpt.next}" not found. Proceeding to next question.`);
       }
@@ -185,8 +103,32 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
     if (nextStep < questions.length) {
       setStep(nextStep);
     } else {
-      const res = calculateMarried(newAnswers);
-      onResult(res);
+      console.log('Quiz completed! Calculating results...');
+      console.log('Answers:', newAnswers);
+      
+      try {
+        setCalculating(true);
+        const res = await calculateMarried(newAnswers); // ASYNC - czeka na wagi
+        console.log('Calculation result:', res);
+        onResult(res);
+      } catch (err) {
+        console.error('Error calculating results:', err);
+        setError('Błąd podczas obliczania wyników. Spróbuj ponownie.');
+        setCalculating(false);
+      }
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 0) {
+      setStep(step - 1);
+      // Opcjonalnie: usuń odpowiedź na bieżące pytanie
+      const currentQuestionId = questions[step].id;
+      const newAnswers = { ...answers };
+      delete newAnswers[currentQuestionId];
+      setAnswers(newAnswers);
+    } else {
+      onBack();
     }
   };
 
@@ -199,10 +141,41 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
         alignItems: 'center', 
         height: '100vh',
         flexDirection: 'column',
-        gap: '1rem'
+        gap: '1rem',
+        padding: '2rem',
+        textAlign: 'center'
       }}>
-        <div style={{ fontSize: '2rem' }}>⏳</div>
-        <div>Ładowanie pytań...</div>
+        <div style={{ fontSize: '3rem' }}>⏳</div>
+        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+          Ładowanie pytań...
+        </div>
+        <div style={{ fontSize: '0.875rem', color: '#666' }}>
+          Pobieranie danych z Google Sheets
+        </div>
+      </div>
+    );
+  }
+
+  // Calculating results state
+  if (calculating) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '1rem',
+        padding: '2rem',
+        textAlign: 'center'
+      }}>
+        <div style={{ fontSize: '3rem' }}>🧮</div>
+        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+          Analizuję Twoje odpowiedzi...
+        </div>
+        <div style={{ fontSize: '0.875rem', color: '#666' }}>
+          Kalkulacja ryzyka na podstawie wag z arkusza
+        </div>
       </div>
     );
   }
@@ -215,21 +188,27 @@ const MarriedPathway: React.FC<MarriedPathwayProps> = ({ onResult, onBack }) => 
     <>
       {error && (
         <div style={{ 
-          padding: '0.5rem', 
+          padding: '0.75rem 1rem', 
           backgroundColor: '#fff3cd', 
           color: '#856404',
           textAlign: 'center',
-          fontSize: '0.875rem'
+          fontSize: '0.875rem',
+          borderBottom: '1px solid #ffeaa7',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem'
         }}>
-          ⚠️ {error}
+          <span style={{ fontSize: '1.25rem' }}>⚠️</span>
+          <span>{error}</span>
         </div>
       )}
       <QuestionScreen
-        title="💚 W małżeństwie"
+        title="💍 W małżeństwie"
         question={q.q}
         options={q.opts.map(opt => typeof opt === 'string' ? opt : opt.text)}
         onAnswer={handleAnswer}
-        onBack={step > 0 ? () => setStep(step - 1) : onBack}
+        onBack={handleBack}
         progress={progress}
         step={step + 1}
         total={questions.length}
