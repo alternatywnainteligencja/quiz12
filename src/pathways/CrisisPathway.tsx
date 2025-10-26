@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import QuestionScreen from '../components/QuestionScreen';
-import { calculateCrisis } from '../calculations/calculations'; // ZMIANA 1
+import { calculateCrisis } from '../calculations/calculations';
 import { fetchQuestionsWithCache, Question, QuestionOption } from '../services/googleSheetsService';
 
 interface CrisisPathwayProps {
@@ -16,24 +16,81 @@ const CrisisPathway: React.FC<CrisisPathwayProps> = ({ onResult, onBack }) => {
   const [error, setError] = useState<string | null>(null);
   const [calculating, setCalculating] = useState(false);
 
-  // Fallback questions
+  // Fallback questions - pełne przykłady dla ścieżki "kryzys"
   const fallbackQuestions: Question[] = [
-    { 
-      id: '1', 
-      q: 'Przykładowe pytanie dla ścieżki kryzysowej?', 
+    {
+      id: '1',
+      q: 'Jak często dochodzi do intensywnych kłótni w ostatnim czasie?',
       opts: [
-        { text: 'Opcja 1' }, 
-        { text: 'Opcja 2' }
+        { text: 'Rzadko - raz na kilka miesięcy' },
+        { text: 'Kilka razy w miesiącu' },
+        { text: 'Co tydzień' },
+        { text: 'Prawie codziennie' },
+        { text: 'Kilka razy dziennie - żyjemy w stałym konflikcie' }
       ]
     },
+    {
+      id: '2',
+      q: 'Czy partnerka groziła Ci już rozstaniem/rozwodem?',
+      opts: [
+        { text: 'Nigdy' },
+        { text: 'Raz, w emocjach' },
+        { text: 'Kilka razy' },
+        { text: 'Często to robi' },
+        { text: 'Używa tego jako narzędzia manipulacji' }
+      ]
+    },
+    {
+      id: '3',
+      q: 'Czy w kłótniach pojawia się agresja fizyczna (popychanie, rzucanie rzeczami)?',
+      opts: [
+        { text: 'Nigdy' },
+        { text: 'Raz się zdarzyło' },
+        { text: 'Kilka razy - z jej strony' },
+        { text: 'Kilka razy - z obu stron' },
+        { text: 'Regularnie - sytuacja jest niebezpieczna' }
+      ]
+    },
+    {
+      id: '4',
+      q: 'Czy partnerka kontroluje Twoje finanse, telefon, kontakty ze znajomymi?',
+      opts: [
+        { text: 'Nie, mam pełną swobodę' },
+        { text: 'Czasami pyta o szczegóły' },
+        { text: 'Sprawdza mój telefon/konta bez pytania' },
+        { text: 'Wymaga dostępu do wszystkiego' },
+        { text: 'Kontroluje każdy aspekt mojego życia' }
+      ]
+    },
+    {
+      id: '5',
+      q: 'Czy myślałeś o tym, żeby szukać pomocy prawnika lub terapeuty?',
+      opts: [
+        { text: 'Nie, nie widzę potrzeby' },
+        { text: 'Myślałem, ale jeszcze nie działałem' },
+        { text: 'Już poszukuję informacji' },
+        { text: 'Umówiłem się na konsultację' },
+        { text: 'Jestem w trakcie procesu prawnego/terapii' }
+      ]
+    },
+    {
+      id: '6',
+      q: 'Czy są dzieci w związku?',
+      opts: [
+        { text: 'Nie' },
+        { text: 'Tak, jedno dziecko' },
+        { text: 'Tak, dwoje lub więcej dzieci' },
+        { text: 'Partnerka jest w ciąży' }
+      ]
+    }
   ];
 
   useEffect(() => {
     const loadQuestions = async () => {
       try {
         setLoading(true);
-        console.log('Fetching questions for "crisis" pathway...'); // ZMIANA 2
-        const fetchedQuestions = await fetchQuestionsWithCache('crisis'); // ZMIANA 2
+        console.log('Fetching questions for "crisis" pathway...');
+        const fetchedQuestions = await fetchQuestionsWithCache('crisis');
         console.log(`Loaded ${fetchedQuestions.length} questions`);
         setQuestions(fetchedQuestions);
         setError(null);
@@ -67,6 +124,8 @@ const CrisisPathway: React.FC<CrisisPathwayProps> = ({ onResult, onBack }) => {
       if (nextIndex !== -1) {
         nextStep = nextIndex;
         console.log(`Conditional jump to question: ${chosenOpt.next}`);
+      } else {
+        console.warn(`Next question with id "${chosenOpt.next}" not found. Proceeding to next question.`);
       }
     }
 
@@ -78,7 +137,7 @@ const CrisisPathway: React.FC<CrisisPathwayProps> = ({ onResult, onBack }) => {
       
       try {
         setCalculating(true);
-        const res = await calculateCrisis(newAnswers); // ZMIANA 1
+        const res = await calculateCrisis(newAnswers);
         console.log('Calculation result:', res);
         onResult(res);
       } catch (err) {
@@ -170,7 +229,7 @@ const CrisisPathway: React.FC<CrisisPathwayProps> = ({ onResult, onBack }) => {
         </div>
       )}
       <QuestionScreen
-        title="⚠️ W kryzysie" // ZMIANA 3 - tytuł
+        title="⚠️ W kryzysie"
         question={q.q}
         options={q.opts.map(opt => typeof opt === 'string' ? opt : opt.text)}
         onAnswer={handleAnswer}
@@ -178,7 +237,7 @@ const CrisisPathway: React.FC<CrisisPathwayProps> = ({ onResult, onBack }) => {
         progress={progress}
         step={step + 1}
         total={questions.length}
-        color="orange" // ZMIANA 3 - kolor
+        color="orange"
       />
     </>
   );
