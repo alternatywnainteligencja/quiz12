@@ -1,7 +1,6 @@
-
 /**
- * Nowa wersja obliczeń używająca wag z Google Sheets
- * Kalkuluje rzeczywiste ryzyko na podstawie odpowiedzi użytkownika
+ * POPRAWIONA wersja obliczeń - używa RZECZYWISTYCH odpowiedzi użytkownika
+ * Dynamicznie generuje content na podstawie danych, nie statycznych szablonów
  */
 
 import { fetchWeightsWithCache, type WeightsData } from '../services/googleSheetsService';
@@ -12,9 +11,8 @@ interface CalculationResult {
   mainTitle: string;
   mainDescription: string;
   
-  // NOWE: Procentowe ryzyka
   overallRiskPercentage: number;
-  riskBreakdown: Record<string, number>; // { "Rozstanie/Rozwód": 45, ... }
+  riskBreakdown: Record<string, number>;
   
   probabilities: {
     divorce: number;
@@ -68,32 +66,48 @@ let weightsDataCache: WeightsData | null = null;
 
 async function getWeightsData(): Promise<WeightsData> {
   if (!weightsDataCache) {
-    weightsDataCache = await fetchWeightsWithCache();
+    try {
+      weightsDataCache = await fetchWeightsWithCache();
+      console.log('✅ Loaded weights from API:', weightsDataCache.weights?.length || 0);
+    } catch (error) {
+      console.error('❌ Failed to load weights:', error);
+      // Fallback do pustej struktury
+      weightsDataCache = { weights: [], lastUpdated: new Date().toISOString() };
+    }
   }
   return weightsDataCache;
 }
 
 /**
- * Główna funkcja kalkulująca ryzyko
+ * 🔥 GŁÓWNA FUNKCJA - POPRAWIONA
  */
 async function calculateRisk(
   answers: Record<string, string>,
   pathway: string
 ): Promise<CalculationResult> {
-  const weightsData = await getWeightsData();
+  console.log('🎯 Starting calculation for pathway:', pathway);
+  console.log('📝 User answers:', answers);
   
+  const weightsData = await getWeightsData();
+  // Na początek calculateRisk(), zaraz po getWeightsData():
+if (!weightsData.weights || weightsData.weights.length === 0) {
+  console.warn('⚠️ NO WEIGHTS - using MOCK data');
+  weightsData.weights = createMockWeights(); // Stwórz przykładowe wagi
+}
   // 1. Zbierz punkty ryzyka dla każdej odpowiedzi
   let totalRiskPoints = 0;
   let maxPossiblePoints = 0;
   const riskScores: Record<string, number> = {};
+  const matchedWeights: Array<any> = []; // Do debugowania
   
   Object.entries(answers).forEach(([questionId, answerText]) => {
-    // Znajdź wagę dla tej kombinacji pytanie + odpowiedź
     const weight = weightsData.weights.find(
       w => w.questionId === questionId && w.answer === answerText
     );
     
     if (weight) {
+      console.log(`✓ Match: ${questionId} = "${answerText}" → ${weight.riskPoints} pts`);
+      matchedWeights.push(weight);
       totalRiskPoints += weight.riskPoints;
       
       // Dodaj do głównego ryzyka
@@ -102,16 +116,20 @@ async function calculateRisk(
       }
       
       // Dodaj do ryzyk pobocznych (z mniejszą wagą)
-      weight.sideRisks.forEach(sideRisk => {
+      weight.sideRisks?.forEach(sideRisk => {
         if (sideRisk && sideRisk !== '-') {
           riskScores[sideRisk] = (riskScores[sideRisk] || 0) + (weight.riskPoints * 0.5);
         }
       });
+    } else {
+      console.warn(`✗ No match: ${questionId} = "${answerText}"`);
     }
     
-    // Zakładamy max 10 punktów na pytanie
-    maxPossiblePoints += 10;
+    maxPossiblePoints += 10; // Zakładamy max 10 punktów na pytanie
   });
+  
+  console.log('💯 Total risk points:', totalRiskPoints, '/', maxPossiblePoints);
+  console.log('📊 Risk breakdown:', riskScores);
   
   // 2. Oblicz procentowe ryzyko ogólne
   const overallRiskPercentage = maxPossiblePoints > 0 
@@ -135,12 +153,21 @@ async function calculateRisk(
   else if (overallRiskPercentage < 75) riskLevel = 'high';
   else riskLevel = 'critical';
   
-  // 5. Pobierz szablon contentu dla pathway
-  const template = getContentTemplate(pathway, riskLevel);
+  console.log('🎚️ Risk level:', riskLevel, `(${overallRiskPercentage}%)`);
+  
+  // 5. 🔥 DYNAMICZNIE generuj content na podstawie RZECZYWISTYCH danych
+  const dynamicContent = generateDynamicContent(
+    pathway,
+    riskLevel,
+    answers,
+    riskBreakdown,
+    overallRiskPercentage,
+    matchedWeights
+  );
   
   // 6. Zwróć wynik
   return {
-    ...template,
+    ...dynamicContent,
     riskLevel,
     overallRiskPercentage,
     riskBreakdown,
@@ -149,236 +176,540 @@ async function calculateRisk(
       source: pathway,
       score: overallRiskPercentage,
       generatedAt: new Date().toISOString(),
-      totalQuestions: 50, // Zakładamy 50 pytań na ścieżkę
+      totalQuestions: 50,
       answeredQuestions: Object.keys(answers).length
     }
   };
 }
 
 /**
- * Szablony contentu dla różnych ścieżek i poziomów ryzyka
+ * 🔥 NOWA FUNKCJA - Dynamiczne generowanie contentu
  */
-function getContentTemplate(pathway: string, riskLevel: string): Partial<CalculationResult> {
-  // Mapowanie pathway -> content
-  const templates: Record<string, any> = {
-    before: {
-      low: {
-        mainTitle: "Stabilny początek - obserwuj i buduj",
-        mainDescription: "Twój związek wydaje się być na dobrej drodze. Większość wskaźników jest pozytywna, ale nie zapominaj o ciągłej pracy nad komunikacją i wzajemnym zrozumieniem.",
-      },
-      medium: {
-        mainTitle: "Wczesny etap - obserwuj sygnały ostrzegawcze",
-        mainDescription: "Związek wydaje się stabilny, ale powoli coś zaczyna się przesuwać pod powierzchnią. Drobne zmiany w tonie rozmów, coraz krótsze wiadomości, mniej spontaniczności - to nie przypadek.",
-      },
-      high: {
-        mainTitle: "Sygnały ostrzegawcze - czas na działanie",
-        mainDescription: "Twój związek wykazuje niepokojące wzorce. Nie ignoruj tego co widzisz. To moment na poważną analizę i potencjalne działania korygujące.",
-      },
-      critical: {
-        mainTitle: "Wysokie ryzyko - natychmiastowa interwencja",
-        mainDescription: "Sytuacja jest poważna. Wzorce zachowań wskazują na wysokie prawdopodobieństwo problemów. Potrzebujesz profesjonalnej pomocy i konkretnego planu działania.",
+function generateDynamicContent(
+  pathway: string,
+  riskLevel: string,
+  answers: Record<string, string>,
+  riskBreakdown: Record<string, number>,
+  overallRiskPercentage: number,
+  matchedWeights: Array<any>
+): Partial<CalculationResult> {
+  
+  // Analiza odpowiedzi użytkownika
+  const analysis = analyzeAnswers(answers, riskBreakdown);
+  
+  return {
+    mainTitle: generateTitle(pathway, riskLevel, overallRiskPercentage, analysis),
+    mainDescription: generateDescription(pathway, riskLevel, analysis, riskBreakdown),
+    probabilities: generateProbabilities(riskBreakdown, analysis),
+    scenarios: generateScenarios(pathway, riskBreakdown, analysis, matchedWeights),
+    actionItems: generateActionItems(riskLevel, riskBreakdown, analysis),
+    recommendations: generateRecommendations(pathway, riskBreakdown, analysis),
+    timeline: generateTimeline(pathway, riskLevel, analysis),
+    readingList: generateReadingList(pathway, riskBreakdown),
+    psychologicalProfiles: generateProfiles(pathway, riskLevel, analysis),
+    conclusion: generateConclusion(riskLevel, overallRiskPercentage, analysis)
+  };
+}
+
+/**
+ * 🔍 Analiza odpowiedzi użytkownika
+ */
+function analyzeAnswers(
+  answers: Record<string, string>,
+  riskBreakdown: Record<string, number>
+) {
+  return {
+    // Dzieci
+    hasKids: checkAnswer(answers, ['has_kids', 'kids', 'children'], ['Tak', 'yes']),
+    kidsConflict: checkAnswer(answers, ['kids_relationship', 'contact_kids'], ['konflikt', 'trudny', 'niemożliwy']),
+    
+    // Finanse
+    financialControl: checkAnswer(answers, ['financial', 'money', 'control'], ['kontroluje', 'brak dostępu', 'całkowita']),
+    sharedAssets: checkAnswer(answers, ['assets', 'property', 'majątek'], ['wspólny', 'shared']),
+    
+    // Komunikacja
+    poorCommunication: checkAnswer(answers, ['communication', 'talk', 'rozmowy'], ['zła', 'brak', 'trudna', 'niemożliwa']),
+    manipulation: checkAnswer(answers, ['manipulation', 'control', 'gaslighting'], ['tak', 'często', 'czasami']),
+    
+    // Emocje
+    emotionalAbuse: checkAnswer(answers, ['abuse', 'emotional', 'verbal'], ['tak', 'często']),
+    fearLevel: checkAnswer(answers, ['fear', 'afraid', 'strach'], ['wysoki', 'bardzo', 'tak']),
+    
+    // Wsparcie
+    hasSupport: checkAnswer(answers, ['support', 'friends', 'family', 'wsparcie'], ['tak', 'mam']),
+    isolatedFromFriends: checkAnswer(answers, ['friends', 'isolated', 'izolacja'], ['nie', 'brak', 'odcięty']),
+    
+    // Top ryzyka
+    topRisks: Object.entries(riskBreakdown)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 3)
+      .map(([risk]) => risk),
+    
+    // Poziom każdego ryzyka
+    divorceRisk: riskBreakdown['Rozstanie/Rozwód'] || 0,
+    alienationRisk: riskBreakdown['Alienacja rodzicielska'] || 0,
+    falseAccusationRisk: riskBreakdown['Fałszywe oskarżenia'] || 0,
+    financialRisk: riskBreakdown['Straty finansowe'] || 0,
+    manipulationRisk: riskBreakdown['Manipulacja'] || 0
+  };
+}
+
+/**
+ * Helper: sprawdza czy odpowiedź zawiera określone słowa kluczowe
+ */
+function checkAnswer(
+  answers: Record<string, string>,
+  questionKeys: string[],
+  valueKeys: string[]
+): boolean {
+  for (const qKey of questionKeys) {
+    for (const [question, answer] of Object.entries(answers)) {
+      if (question.toLowerCase().includes(qKey.toLowerCase())) {
+        const answerLower = answer.toLowerCase();
+        if (valueKeys.some(vKey => answerLower.includes(vKey.toLowerCase()))) {
+          return true;
+        }
       }
+    }
+  }
+  return false;
+}
+
+/**
+ * 🎯 Dynamiczny tytuł
+ */
+function generateTitle(
+  pathway: string,
+  riskLevel: string,
+  percentage: number,
+  analysis: any
+): string {
+  const titles: Record<string, Record<string, string>> = {
+    before: {
+      low: `Stabilny początek (${percentage}% ryzyka)`,
+      medium: `Sygnały ostrzegawcze (${percentage}% ryzyka) - obserwuj`,
+      high: `Poważne sygnały alarmowe (${percentage}% ryzyka) - działaj`,
+      critical: `KRYTYCZNE ryzyko (${percentage}%) - natychmiastowa interwencja`
     },
     crisis: {
-      low: {
-        mainTitle: "Kryzys opanowany - kontynuuj pracę",
-        mainDescription: "Mimo trudności, jesteś na dobrej drodze do rozwiązania kryzysu. Kontynuuj obecne działania.",
-      },
-      medium: {
-        mainTitle: "Kryzys - relacja na ostrzu noża",
-        mainDescription: "To moment, w którym emocje zaczynają dominować nad rozsądkiem. Każde słowo może zostać źle zinterpretowane, każda reakcja może sprowokować konflikt.",
-      },
-      high: {
-        mainTitle: "Głęboki kryzys - pilna interwencja",
-        mainDescription: "Sytuacja eskaluje. Potrzebujesz natychmiastowego wsparcia profesjonalistów i strategicznego podejścia.",
-      },
-      critical: {
-        mainTitle: "Kryzys krytyczny - zabezpiecz się",
-        mainDescription: "Jesteś w epicentrum kryzysu. Priorytetem jest Twoje bezpieczeństwo i zabezpieczenie interesów. Działaj szybko i mądrze.",
-      }
+      low: `Kryzys pod kontrolą (${percentage}% ryzyka)`,
+      medium: `Relacja na ostrzu noża (${percentage}% ryzyka)`,
+      high: `Głęboki kryzys (${percentage}% ryzyka) - pilna interwencja`,
+      critical: `KRYZYS KRYTYCZNY (${percentage}%) - zabezpiecz się TERAZ`
     },
     divorce: {
-      low: {
-        mainTitle: "Proces pod kontrolą",
-        mainDescription: "Mimo rozstania, proces przebiega relatywnie spokojnie. Utrzymuj ten stan.",
-      },
-      medium: {
-        mainTitle: "Rozstanie - czas na zimną analizę",
-        mainDescription: "Rozstanie to nie tylko emocjonalne trzęsienie ziemi – to również test charakteru, spokoju i odporności.",
-      },
-      high: {
-        mainTitle: "Trudne rozstanie - maksymalne zabezpieczenie",
-        mainDescription: "Proces rozwodowy jest konfliktowy. Każdy krok musi być przemyślany i skonsultowany z prawnikiem.",
-      },
-      critical: {
-        mainTitle: "Rozwód wysokiego konfliktu - ochrona priorytetem",
-        mainDescription: "Jesteś w sytuacji ekstremalnie trudnej. Zabezpieczenie Twoje i Twoich dzieci jest najważniejsze. Nie działaj samodzielnie.",
-      }
+      low: `Rozstanie pod kontrolą (${percentage}% ryzyka)`,
+      medium: `Rozwód - maksymalne zabezpieczenie (${percentage}% ryzyka)`,
+      high: `Rozwód wysokiego konfliktu (${percentage}%) - OCHRONA priorytetem`,
+      critical: `EKSTREMALNIE trudna sytuacja (${percentage}%) - NIE działaj sam`
     },
     married: {
-      low: {
-        mainTitle: "Zdrowy związek - utrzymuj balans",
-        mainDescription: "Twój związek jest stabilny i zdrowy. Kontynuuj dobre praktyki i nie zapominaj o rozwoju osobistym.",
-      },
-      medium: {
-        mainTitle: "Stały związek - utrzymaj równowagę",
-        mainDescription: "Stabilny związek to nie koniec czujności – to dopiero początek innej formy odpowiedzialności.",
-      },
-      high: {
-        mainTitle: "Rutyna zabija - ożyw związek",
-        mainDescription: "Związek popadł w rutynę, która zaczyna być toksyczna. Potrzeba świeżych bodźców i odnowy.",
-      },
-      critical: {
-        mainTitle: "Stagnacja zaawansowana - pilne zmiany",
-        mainDescription: "Związek jest w stanie zaawansowanej stagnacji. Bez radykalnych zmian może to doprowadzić do rozpadu.",
-      }
+      low: `Zdrowy związek (${percentage}% ryzyka) - utrzymaj balans`,
+      medium: `Stabilny związek (${percentage}%) - obserwuj równowagę`,
+      high: `Rutyna szkodzi (${percentage}%) - potrzeba zmian`,
+      critical: `Stagnacja zaawansowana (${percentage}%) - radykalne zmiany TERAZ`
     }
   };
+  
+  return titles[pathway]?.[riskLevel] || `Analiza: ${percentage}% ryzyka`;
+}
 
-  const pathwayTemplates = templates[pathway] || templates.before;
-  const template = pathwayTemplates[riskLevel] || pathwayTemplates.medium;
+/**
+ * 📝 Dynamiczny opis
+ */
+function generateDescription(
+  pathway: string,
+  riskLevel: string,
+  analysis: any,
+  riskBreakdown: Record<string, number>
+): string {
+  const parts: string[] = [];
+  
+  // Wstęp zależny od poziomu
+  if (riskLevel === 'critical') {
+    parts.push('⚠️ UWAGA: Znajdujesz się w sytuacji wysokiego ryzyka.');
+  } else if (riskLevel === 'high') {
+    parts.push('Twoja sytuacja wymaga pilnej uwagi i działania.');
+  } else if (riskLevel === 'medium') {
+    parts.push('Widzę niepokojące sygnały, które wymagają monitorowania.');
+  } else {
+    parts.push('Ogólnie sytuacja wygląda stabilnie, ale czujność zawsze się opłaca.');
+  }
+  
+  // Najwyższe ryzyka
+  if (analysis.topRisks.length > 0) {
+    parts.push(`Główne obszary ryzyka: ${analysis.topRisks.join(', ')}.`);
+  }
+  
+  // Dzieci
+  if (analysis.hasKids && analysis.alienationRisk > 30) {
+    parts.push('🚨 Wykryto ryzyko alienacji rodzicielskiej - wymaga natychmiastowej uwagi.');
+  } else if (analysis.hasKids && analysis.kidsConflict) {
+    parts.push('Konflikt dotyczący dzieci może eskalować - dokumentuj wszystko.');
+  }
+  
+  // Finanse
+  if (analysis.financialRisk > 40) {
+    parts.push('💰 Wysokie ryzyko strat finansowych - zabezpiecz majątek i konta.');
+  } else if (analysis.financialControl) {
+    parts.push('Brak kontroli nad finansami to poważny sygnał ostrzegawczy.');
+  }
+  
+  // Manipulacja
+  if (analysis.manipulationRisk > 35 || analysis.manipulation) {
+    parts.push('🎭 Zauważam wzorce manipulacji - nie daj się kontrolować emocjonalnie.');
+  }
+  
+  // Fałszywe oskarżenia
+  if (analysis.falseAccusationRisk > 30) {
+    parts.push('⚖️ Ryzyko fałszywych oskarżeń - DOKUMENTUJ każdą interakcję.');
+  }
+  
+  // Wsparcie
+  if (!analysis.hasSupport || analysis.isolatedFromFriends) {
+    parts.push('Brak sieci wsparcia zwiększa ryzyko - odbuduj kontakty ze znajomymi.');
+  }
+  
+  return parts.join(' ');
+}
 
-  // Uzupełnij resztę contentu (można to rozbudować)
+/**
+ * 📊 Dynamiczne prawdopodobieństwa
+ */
+function generateProbabilities(
+  riskBreakdown: Record<string, number>,
+  analysis: any
+) {
   return {
-    ...template,
-    probabilities: generateProbabilities(riskLevel),
-    scenarios: generateScenarios(pathway, riskLevel),
-    actionItems: generateActionItems(riskLevel),
-    recommendations: generateRecommendations(pathway),
-    timeline: generateTimeline(pathway),
-    readingList: generateReadingList(pathway),
-    psychologicalProfiles: generateProfiles(pathway, riskLevel),
-    conclusion: generateConclusion(riskLevel)
+    divorce: Math.min(95, riskBreakdown['Rozstanie/Rozwód'] || 15),
+    falseAccusation: Math.min(90, riskBreakdown['Fałszywe oskarżenia'] || 5),
+    alienation: Math.min(95, riskBreakdown['Alienacja rodzicielska'] || 10),
+    financialLoss: Math.min(90, riskBreakdown['Straty finansowe'] || 10)
   };
 }
 
-// Pomocnicze funkcje generujące content (możesz je dostosować)
-function generateProbabilities(riskLevel: string) {
-  const base = {
-    low: { divorce: 15, falseAccusation: 5, alienation: 10, financialLoss: 10 },
-    medium: { divorce: 35, falseAccusation: 10, alienation: 15, financialLoss: 20 },
-    high: { divorce: 70, falseAccusation: 25, alienation: 30, financialLoss: 55 },
-    critical: { divorce: 95, falseAccusation: 35, alienation: 60, financialLoss: 80 }
-  };
-  return base[riskLevel as keyof typeof base] || base.medium;
-}
-
-function generateScenarios(pathway: string, riskLevel: string) {
-  return [
-    {
+/**
+ * 🎬 Dynamiczne scenariusze
+ */
+function generateScenarios(
+  pathway: string,
+  riskBreakdown: Record<string, number>,
+  analysis: any,
+  matchedWeights: Array<any>
+): Array<any> {
+  const scenarios: Array<any> = [];
+  
+  // Rozwód/rozstanie
+  if (riskBreakdown['Rozstanie/Rozwód'] > 30) {
+    scenarios.push({
+      scenario: "Rozwód lub trwałe rozstanie",
+      probability: Math.min(95, riskBreakdown['Rozstanie/Rozwód']),
+      why: analysis.poorCommunication 
+        ? "Brak komunikacji i narastające konflikty wskazują na nieuchronność"
+        : "Zauważalne wzorce dystansowania się i zmiany w relacji",
+      impactScore: 9
+    });
+  }
+  
+  // Alienacja
+  if (analysis.hasKids && riskBreakdown['Alienacja rodzicielska'] > 25) {
+    scenarios.push({
+      scenario: "Alienacja rodzicielska",
+      probability: Math.min(90, riskBreakdown['Alienacja rodzicielska']),
+      why: analysis.kidsConflict
+        ? "Konflikt dotyczący dzieci i próby ich izolowania"
+        : "Wzorce zachowań mogące prowadzić do alienacji",
+      impactScore: 10
+    });
+  }
+  
+  // Fałszywe oskarżenia
+  if (riskBreakdown['Fałszywe oskarżenia'] > 20) {
+    scenarios.push({
+      scenario: "Fałszywe oskarżenia (przemoc, zaniedbanie)",
+      probability: Math.min(85, riskBreakdown['Fałszywe oskarżenia']),
+      why: analysis.manipulation
+        ? "Zauważone wzorce manipulacji mogą eskalować do fałszywych oskarżeń"
+        : "Sytuacja konfliktowa stwarza ryzyko wykorzystania oskarżeń jako broni",
+      impactScore: 10
+    });
+  }
+  
+  // Straty finansowe
+  if (riskBreakdown['Straty finansowe'] > 30) {
+    scenarios.push({
+      scenario: "Znaczne straty finansowe",
+      probability: Math.min(88, riskBreakdown['Straty finansowe']),
+      why: analysis.financialControl
+        ? "Brak kontroli nad finansami zwiększa ryzyko manipulacji majątkiem"
+        : "Wspólne aktywa i brak przejrzystości finansowej",
+      impactScore: 8
+    });
+  }
+  
+  // Manipulacja emocjonalna
+  if (riskBreakdown['Manipulacja'] > 25) {
+    scenarios.push({
+      scenario: "Eskalacja manipulacji emocjonalnej",
+      probability: Math.min(80, riskBreakdown['Manipulacja']),
+      why: "Wykryte wzorce manipulacji często nasilają się w czasie",
+      impactScore: 7
+    });
+  }
+  
+  // Jeśli brak konkretnych scenariuszy, dodaj ogólny
+  if (scenarios.length === 0) {
+    scenarios.push({
       scenario: "Stopniowe oddalanie się",
-      probability: 50,
-      why: "Brak komunikacji i wspólnych celów",
-      impactScore: 6
+      probability: 30,
+      why: "Naturalna ewolucja związków bez aktywnej pracy nad relacją",
+      impactScore: 5
+    });
+  }
+  
+  return scenarios.sort((a, b) => b.probability - a.probability).slice(0, 5);
+}
+
+/**
+ * ✅ Dynamiczne akcje
+ */
+function generateActionItems(
+  riskLevel: string,
+  riskBreakdown: Record<string, number>,
+  analysis: any
+): Array<any> {
+  const actions: Array<any> = [];
+  
+  // Krytyczne akcje
+  if (riskLevel === 'critical' || riskLevel === 'high') {
+    actions.push({
+      priority: "🚨 NATYCHMIASTOWE",
+      action: "Skonsultuj się z prawnikiem specjalizującym się w prawie rodzinnym"
+    });
+    
+    if (analysis.hasKids && analysis.alienationRisk > 30) {
+      actions.push({
+        priority: "🚨 KRYTYCZNE",
+        action: "Dokumentuj WSZYSTKIE interakcje z dziećmi - nagrania audio (jeśli legalne), SMS, email"
+      });
     }
-  ];
+    
+    if (analysis.financialRisk > 40) {
+      actions.push({
+        priority: "🚨 PILNE",
+        action: "Zabezpiecz finanse: osobne konto, zmień hasła, skopiuj wszystkie dokumenty"
+      });
+    }
+    
+    if (analysis.falseAccusationRisk > 30) {
+      actions.push({
+        priority: "🚨 KRYTYCZNE",
+        action: "NIE spotykaj się sam na sam bez świadków - każda interakcja musi być udokumentowana"
+      });
+    }
+  }
+  
+  // Średnie ryzyko
+  if (riskLevel === 'medium' || riskLevel === 'high') {
+    actions.push({
+      priority: "⚠️ WAŻNE",
+      action: "Rozpocznij prowadzenie dziennika zdarzeń - daty, fakty, kontekst (bez emocji)"
+    });
+    
+    if (!analysis.hasSupport) {
+      actions.push({
+        priority: "⚠️ WAŻNE",
+        action: "Odbuduj sieć wsparcia - zaufani przyjaciele, rodzina, grupa wsparcia"
+      });
+    }
+    
+    actions.push({
+      priority: "⚠️ ZALECANE",
+      action: "Rozważ konsultację z terapeutą specjalizującym się w sytuacjach kryzysowych"
+    });
+  }
+  
+  // Niskie ryzyko
+  if (riskLevel === 'low') {
+    actions.push({
+      priority: "✓ ZALECANE",
+      action: "Kontynuuj obserwację - zwracaj uwagę na zmiany w zachowaniu"
+    });
+    
+    actions.push({
+      priority: "✓ ROZWÓJ",
+      action: "Pracuj nad sobą: trening, hobby, rozwój osobisty - utrzymuj niezależność"
+    });
+  }
+  
+  // Zawsze dodaj
+  actions.push({
+    priority: "💪 FUNDAMENTALNE",
+    action: "Zachowaj spokój i kontrolę emocjonalną - nie reaguj impulsywnie"
+  });
+  
+  return actions.slice(0, 6);
 }
 
-function generateActionItems(riskLevel: string) {
-  const items = {
-    low: [
-      { priority: "NISKI", action: "Kontynuuj obecne dobre praktyki" }
-    ],
-    medium: [
-      { priority: "ŚREDNI", action: "Zwiększ obserwację wzorców zachowań" },
-      { priority: "ŚREDNI", action: "Rozważ rozmowę o stanie relacji" }
-    ],
-    high: [
-      { priority: "WYSOKI", action: "Zasięgnij profesjonalnej porady" },
-      { priority: "WYSOKI", action: "Zabezpiecz ważne dokumenty" }
-    ],
-    critical: [
-      { priority: "KRYTYCZNY", action: "Natychmiastowa konsultacja prawna" },
-      { priority: "KRYTYCZNY", action: "Zabezpiecz finanse i komunikację" }
-    ]
-  };
-  return items[riskLevel as keyof typeof items] || items.medium;
+/**
+ * 💡 Dynamiczne rekomendacje
+ */
+function generateRecommendations(
+  pathway: string,
+  riskBreakdown: Record<string, number>,
+  analysis: any
+): Array<any> {
+  const recs: Array<any> = [];
+  
+  // Komunikacja
+  if (analysis.poorCommunication || analysis.manipulation) {
+    recs.push({
+      type: "komunikacja",
+      text: "TYLKO pisemna komunikacja (SMS, email) - nic ustnie, wszystko udokumentowane"
+    });
+    
+    recs.push({
+      type: "komunikacja",
+      text: "Bądź konkretny, rzeczowy, bez emocji - nie daj się sprowokować"
+    });
+  }
+  
+  // Mentalne
+  recs.push({
+    type: "mentalne",
+    text: "Techniki oddychania i mindfulness - kontroluj reakcje w stresie"
+  });
+  
+  if (analysis.emotionalAbuse) {
+    recs.push({
+      type: "mentalne",
+      text: "Praca z terapeutą nad trauma bond i manipulacją emocjonalną"
+    });
+  }
+  
+  // Prawne
+  if (riskBreakdown['Fałszywe oskarżenia'] > 20 || riskBreakdown['Straty finansowe'] > 30) {
+    recs.push({
+      type: "prawne",
+      text: "Przygotuj teczką obronną: dokumenty, nagrania, świadkowie, timeline zdarzeń"
+    });
+  }
+  
+  // Fizyczne
+  recs.push({
+    type: "fizyczne",
+    text: "Regularny trening - redukuje stres i buduje odporność psychiczną"
+  });
+  
+  // Społeczne
+  if (!analysis.hasSupport) {
+    recs.push({
+      type: "społeczne",
+      text: "Odbuduj relacje społeczne - izolacja jest bronią manipulatora"
+    });
+  }
+  
+  return recs.slice(0, 6);
 }
 
-function generateRecommendations(pathway: string) {
-  return [
-    { type: "komunikacja", text: "Mów krótko i konkretnie" },
-    { type: "mentalne", text: "Zachowaj spokój i obiektywizm" }
-  ];
+/**
+ * 📅 Timeline (użyj istniejącej funkcji, ale dodaj dynamikę)
+ */
+function generateTimeline(pathway: string, riskLevel: string, analysis: any) {
+  // Bazowa timeline z poprzedniej wersji
+  const baseTimeline = getBaseTimeline(pathway);
+  
+  // Dodaj dynamiczne elementy dla high/critical
+  if (riskLevel === 'critical' || riskLevel === 'high') {
+    if (analysis.hasKids && analysis.alienationRisk > 30) {
+      baseTimeline.days30.unshift("⚠️ Skontaktuj się z prawnikiem nt. zabezpieczenia kontaktów z dziećmi");
+    }
+    
+    if (analysis.falseAccusationRisk > 30) {
+      baseTimeline.days30.unshift("🚨 Zainstaluj aplikację do nagrywania rozmów (jeśli legalne w PL)");
+    }
+  }
+  
+  return baseTimeline;
 }
 
-function generateTimeline(pathway: string) {
+function getBaseTimeline(pathway: string) {
   const timelines: Record<string, any> = {
     before: {
       days30: [
-        "Zacznij prowadzić dziennik obserwacji - zapisuj zmiany w zachowaniu, rozmowach i emocjach",
-        "Wzmocnij swoją niezależność: spotkania ze znajomymi, hobby, rozwój osobisty",
-        "Nie konfrontuj się emocjonalnie - zachowaj spokój i zbieraj fakty"
+        "Zacznij prowadzić dziennik obserwacji",
+        "Wzmocnij swoją niezależność",
+        "Nie konfrontuj się emocjonalnie"
       ],
       days90: [
-        "Oceń czy sytuacja się poprawia czy pogarsza - bądź obiektywny",
-        "Rozważ rozmowę z terapeutą lub coachem relacji, aby lepiej zrozumieć dynamikę",
-        "Ustanów granice - jasno komunikuj swoje potrzeby bez agresji"
+        "Oceń czy sytuacja się poprawia",
+        "Rozważ rozmowę z terapeutą",
+        "Ustanów granice"
       ],
       days365: [
-        "Podejmij decyzję: czy chcesz kontynuować związek czy przygotować się na rozstanie",
-        "Jeśli decydujesz się na kontynuację - ustal wspólne cele i plan naprawy relacji",
-        "Jeśli decydujesz się na rozstanie - przygotuj się prawnie i finansowo"
+        "Podejmij decyzję: kontynuacja czy rozstanie",
+        "Jeśli kontynuacja - wspólne cele",
+        "Jeśli rozstanie - przygotuj się prawnie"
       ]
     },
     crisis: {
       days30: [
-        "Skonsultuj się z prawnikiem specjalizującym się w prawie rodzinnym - poznaj swoje prawa",
-        "Zabezpiecz wszystkie ważne dokumenty: finansowe, własności, komunikację",
-        "Ogranicz kontakt do minimum - komunikuj się krótkimi wiadomościami, tylko o konkretach",
-        "NIE podpisuj żadnych dokumentów bez konsultacji prawnej"
+        "Skonsultuj się z prawnikiem",
+        "Zabezpiecz dokumenty",
+        "Ogranicz kontakt do minimum",
+        "NIE podpisuj niczego bez prawnika"
       ],
       days90: [
-        "Jeśli są dzieci: ustal tymczasowy harmonogram kontaktów z pomocą prawnika lub mediatora",
-        "Oddziel finanse: osobne konta, kontrola wydatków, dokumentacja przepływów pieniężnych",
-        "Zacznij budować sieć wsparcia: zaufani przyjaciele, terapeuta, grupa wsparcia",
-        "Przygotuj plan awaryjny na różne scenariusze (nagły wyjazd partnerki, eskalacja konfliktu)"
+        "Jeśli są dzieci: ustal harmonogram",
+        "Oddziel finanse",
+        "Zbuduj sieć wsparcia",
+        "Przygotuj plan awaryjny"
       ],
       days365: [
-        "Jeśli dojdzie do rozwodu: doprowadź sprawę do końca z pełnym wsparciem prawnym",
-        "Odbuduj stabilność finansową i emocjonalną - nowe cele, rutyny, nawyki",
-        "Pracuj z terapeutą nad przetworzeniem doświadczeń i odzyskaniem równowagi",
-        "Jeśli są dzieci: buduj silną, stabilną relację z nimi mimo okoliczności"
+        "Doprowadź sprawę do końca",
+        "Odbuduj stabilność",
+        "Pracuj z terapeutą",
+        "Buduj relację z dziećmi"
       ]
     },
     divorce: {
       days30: [
-        "NATYCHMIAST: Zabezpiecz wszystkie dokumenty finansowe, umowy, akty własności",
-        "KRYTYCZNE: Nie rób ŻADNYCH ruchów finansowych bez prawnika (przelewy, kredyty, sprzedaż)",
-        "Zmień hasła do wszystkich kont online, email, bankowość elektroniczna",
-        "Dokumentuj WSZYSTKO: SMS-y, email, rozmowy (jeśli legalne), zdarzenia - zachowuj obiektywność",
-        "Jeśli są dzieci: ustal natychmiastowy plan kontaktów przez prawnika lub sąd"
+        "ZABEZPIECZ dokumenty finansowe",
+        "KRYTYCZNE: żadnych ruchów bez prawnika",
+        "Zmień hasła do wszystkiego",
+        "Dokumentuj WSZYSTKO",
+        "Jeśli dzieci: plan kontaktów"
       ],
       days90: [
-        "Sfinalizuj podział majątku z pomocą prawnika - nie ustępuj pod presją emocjonalną",
-        "Ustabilizuj sytuację finansową: nowe konto, budżet, kontrola wydatków",
-        "Jeśli są dzieci: walcz o sprawiedliwy harmonogram kontaktów - nie akceptuj dobroci drugiej strony",
-        "Zacznij pracę z terapeutą nad przetworzeniem traumy i odbudową pewności siebie",
-        "Odciąć toksyczne kontakty - priorytetem jest Twoje zdrowie psychiczne"
+        "Sfinalizuj podział majątku",
+        "Ustabilizuj finanse",
+        "Walcz o sprawiedliwy harmonogram",
+        "Praca z terapeutą",
+        "Odciąć toksyczne kontakty"
       ],
       days365: [
-        "Zamknij prawnie wszystkie sprawy rozwodowe - nie zostawiaj luźnych końców",
-        "Odbuduj życie: nowe cele zawodowe, społeczne, fizyczne",
-        "Jeśli są dzieci: utrzymuj stabilną, przewidywalną relację z nimi - bądź obecny i spokojny",
-        "Pracuj nad sobą: trening, rozwój, nowe znajomości - odzyskaj siłę i autonomię",
-        "Wyciągnij wnioski: co byś zrobił inaczej? Jak uniknąć podobnej sytuacji w przyszłości?"
+        "Zamknij sprawy prawne",
+        "Odbuduj życie",
+        "Utrzymuj relację z dziećmi",
+        "Trening i rozwój",
+        "Wyciągnij wnioski"
       ]
     },
     married: {
       days30: [
-        "Oceń obecny stan relacji: czy oboje rozwijają się czy stoi w miejscu?",
-        "Zaplanuj wspólną aktywność poza rutyną: wycieczka, nowe hobby, kurs",
-        "Zadbaj o swoją przestrzeń: regularny trening, spotkania z przyjaciółmi, rozwój osobisty"
+        "Oceń stan relacji",
+        "Wspólna aktywność",
+        "Zadbaj o swoją przestrzeń"
       ],
       days90: [
-        "Wprowadź małe zmiany: nowe nawyki, wspólne projekty, odmieniona komunikacja",
-        "Oceń czy partnerka też rozwija się i ma swoje cele - niezależność to klucz",
-        "Upewnij się, że finanse są przejrzyste i oboje macie kontrolę nad budżetem"
+        "Wprowadź zmiany",
+        "Oceń czy partnerka się rozwija",
+        "Finanse przejrzyste"
       ],
       days365: [
-        "Podsumuj rok: co się udało, co wymaga poprawy?",
-        "Ustalcie wspólnie cele na kolejny rok - zarówno relacyjne jak i indywidualne",
-        "Dbaj o równowagę: nie zaniedbuj siebie ani relacji - stała praca to podstawa"
+        "Podsumuj rok",
+        "Wspólne cele",
+        "Balans relacja/rozwój osobisty"
       ]
     }
   };
@@ -386,13 +717,39 @@ function generateTimeline(pathway: string) {
   return timelines[pathway] || timelines.before;
 }
 
-function generateReadingList(pathway: string) {
+/**
+ * 📚 Reading list (z dodatkową dynamiką)
+ */
+function generateReadingList(pathway: string, riskBreakdown: Record<string, number>) {
+  const baseList = getBaseReadingList(pathway);
+  
+  // Dodaj specyficzne książki jeśli wysokie ryzyko w danej kategorii
+  if (riskBreakdown['Alienacja rodzicielska'] > 40) {
+    baseList.unshift({
+      title: "Alienacja rodzicielska - Poradnik dla ojców",
+      author: "Eksperci prawa rodzinnego",
+      description: "Jak rozpoznać i przeciwdziałać alienacji - praktyczne strategie"
+    });
+  }
+  
+  if (riskBreakdown['Manipulacja'] > 40) {
+    baseList.unshift({
+      title: "W pułapce toksycznego związku",
+      author: "Shannon Thomas",
+      description: "Rozpoznawanie i wychodzenie z relacji z osobami narcystycznymi"
+    });
+  }
+  
+  return baseList.slice(0, 5); // Max 5 książek
+}
+
+function getBaseReadingList(pathway: string) {
   const lists: Record<string, any> = {
     before: [
       {
-        title: "Męska energia w związku",
-        author: "David Deida",
-        description: "Jak utrzymać siłę i autonomię w relacji nie tracąc bliskości"
+        title: "No More Mr. Nice Guy",
+        author: "Robert Glover",
+        description: "Jak przestać się dostosowywać i odzyskać męską pewność siebie"
       },
       {
         title: "Attached",
@@ -400,31 +757,31 @@ function generateReadingList(pathway: string) {
         description: "Zrozumienie stylów przywiązania i ich wpływu na relacje"
       },
       {
-        title: "No More Mr. Nice Guy",
-        author: "Robert Glover",
-        description: "Jak przestać się dostosowywać i odzyskać męską pewność siebie"
+        title: "Męska energia w związku",
+        author: "David Deida",
+        description: "Jak utrzymać siłę i autonomię nie tracąc bliskości"
       }
     ],
     crisis: [
       {
-        title: "Prawo rodzinne dla ojców",
-        author: "Zespół prawników",
-        description: "Praktyczny przewodnik po prawach ojców w Polsce - alimenty, kontakty, podział majątku"
-      },
-      {
         title: "48 praw władzy",
         author: "Robert Greene",
-        description: "Strategiczne myślenie w trudnych sytuacjach - nie daj się manipulować"
+        description: "Strategiczne myślenie - nie daj się manipulować"
+      },
+      {
+        title: "Prawo rodzinne dla ojców",
+        author: "Zespół prawników",
+        description: "Praktyczny przewodnik po prawach ojców w Polsce"
       },
       {
         title: "Emocjonalna inteligencja 2.0",
         author: "Travis Bradberry",
-        description: "Jak kontrolować emocje w sytuacjach kryzysowych"
+        description: "Kontrola emocji w sytuacjach kryzysowych"
       },
       {
         title: "Granice w związkach",
         author: "Henry Cloud",
-        description: "Jak ustalać i utrzymywać zdrowe granice"
+        description: "Ustalanie i utrzymywanie zdrowych granic"
       }
     ],
     divorce: [
@@ -436,44 +793,39 @@ function generateReadingList(pathway: string) {
       {
         title: "Ojcowie po rozwodzie",
         author: "Eksperci prawa rodzinnego",
-        description: "Jak walczyć o prawa do dzieci i uniknąć alienacji rodzicielskiej"
+        description: "Walka o prawa do dzieci i unikanie alienacji"
       },
       {
         title: "Sztuka wojny",
         author: "Sun Tzu",
-        description: "Starożytna mądrość o strategii - zachowaj spokój i myśl długoterminowo"
-      },
-      {
-        title: "Odporność psychiczna",
-        author: "Monika Górska",
-        description: "Jak przetrwać najtrudniejsze momenty i wyjść silniejszym"
+        description: "Strategia - zachowaj spokój i myśl długoterminowo"
       },
       {
         title: "Medytacje",
         author: "Marek Aureliusz",
-        description: "Stoicka filozofia w czasach chaosu - kontroluj tylko to, co kontrolować możesz"
+        description: "Stoicka filozofia - kontroluj tylko to, co możesz"
+      },
+      {
+        title: "Odporność psychiczna",
+        author: "Monika Górska",
+        description: "Jak przetrwać najtrudniejsze momenty"
       }
     ],
     married: [
       {
         title: "5 języków miłości",
         author: "Gary Chapman",
-        description: "Jak skutecznie komunikować uczucia i potrzeby w długoletnim związku"
-      },
-      {
-        title: "Paradoks wyboru",
-        author: "Barry Schwartz",
-        description: "Dlaczego w stabilnym związku warto doceniać to, co masz"
-      },
-      {
-        title: "Siła woli",
-        author: "Kelly McGonigal",
-        description: "Jak kontrolować impulsywne reakcje i budować dobre nawyki"
+        description: "Skuteczna komunikacja w długoletnim związku"
       },
       {
         title: "Atomic Habits",
         author: "James Clear",
-        description: "Małe zmiany, wielkie efekty - rozwój osobisty w praktyce"
+        description: "Małe zmiany, wielkie efekty - rozwój osobisty"
+      },
+      {
+        title: "Siła woli",
+        author: "Kelly McGonigal",
+        description: "Kontrola impulsów i budowanie dobrych nawyków"
       }
     ]
   };
@@ -481,87 +833,187 @@ function generateReadingList(pathway: string) {
   return lists[pathway] || lists.before;
 }
 
-function generateProfiles(pathway: string, riskLevel: string) {
-  const profiles: Record<string, any> = {
-    before: {
-      user: [
-        { label: "Stan emocjonalny", value: "Niepewność i wyczulenie na sygnały" },
-        { label: "Dominujący wzorzec", value: "Analityczne podejście, próba zrozumienia sytuacji" },
-        { label: "Główne wyzwanie", value: "Balansowanie między troską a niepotrzebnym przejmowaniem się" }
-      ],
-      partner: [
-        { label: "Obserwowane zachowanie", value: "Stopniowe dystansowanie się, mniejsze zaangażowanie" },
-        { label: "Możliwy wzorzec", value: "Unikanie konfrontacji lub przygotowanie do zmiany" },
-        { label: "Sygnały ostrzegawcze", value: "Krótsze rozmowy, mniej spontaniczności, emocjonalny chłód" }
-      ]
-    },
-    crisis: {
-      user: [
-        { label: "Stan emocjonalny", value: "Wysoki stres, walka o zachowanie kontroli nad sytuacją" },
-        { label: "Dominujący wzorzec", value: "Próba ratowania relacji vs świadomość nieuchronności zmian" },
-        { label: "Ryzyko", value: "Impulsywne reakcje pod wpływem stresu - MUSISZ zachować spokój" },
-        { label: "Siła", value: "Zdolność do strategicznego myślenia jeśli opanujesz emocje" }
-      ],
-      partner: [
-        { label: "Obserwowane zachowanie", value: "Eskalacja napięcia, możliwa manipulacja emocjonalna" },
-        { label: "Możliwy wzorzec", value: "Przygotowanie do rozstania lub próba odzyskania kontroli przez konflikt" },
-        { label: "Sygnały alarmowe", value: "Agresja werbalna, groźby, izolowanie Cię od dzieci lub majątku" },
-        { label: "Prawdopodobna strategia", value: "Może próbować kontrolować narrację i przedstawić siebie jako ofiarę" }
-      ]
-    },
-    divorce: {
-      user: [
-        { label: "Stan emocjonalny", value: "Ekstremalne przeciążenie - żal, złość, poczucie krzywdy, strach o przyszłość" },
-        { label: "Ryzyko", value: "WYSOKIE - możliwe impulsywne decyzje, które będą miały długoterminowe konsekwencje" },
-        { label: "Priorytet", value: "Zachowanie spokoju i kontroli nad emocjami - NIE reaguj impulsywnie" },
-        { label: "Długoterminowy cel", value: "Odbudowa życia i poczucia własnej wartości po traumie" }
-      ],
-      partner: [
-        { label: "Możliwe zachowanie", value: "Agresja, manipulacja, używanie dzieci jako narzędzia nacisku" },
-        { label: "Strategia", value: "Kontrola narracji: przedstawienie siebie jako ofiary, Ciebie jako agresora" },
-        { label: "Zagrożenia", value: "Fałszywe oskarżenia, izolowanie od dzieci, walka o majątek za wszelką cenę" },
-        { label: "Twoja obrona", value: "Dokumentacja, prawnik, spokój, ZERO emocjonalnych reakcji" }
-      ]
-    },
-    married: {
-      user: [
-        { label: "Stan emocjonalny", value: "Stabilny, jednak ryzyko rutyny i stagnacji" },
-        { label: "Dominujący wzorzec", value: "Potrzeba równowagi między bliskością a autonomią" },
-        { label: "Priorytet", value: "Rozwój osobisty i utrzymanie niezależności w relacji" },
-        { label: "Wyzwanie", value: "Nie zatracić się w relacji - pozostań sobą" }
-      ],
-      partner: [
-        { label: "Obserwowane zachowanie", value: "Stabilne, ale może potrzebować nowych bodźców" },
-        { label: "Możliwy wzorzec", value: "Zadowolenie lub powolne wypalanie się przez rutynę" },
-        { label: "Co obserwować", value: "Czy partnerka rozwija się i ma swoje cele? Czy komunikacja jest otwarta?" },
-        { label: "Sygnały ostrzegawcze", value: "Coraz mniej rozmów o przyszłości, marazm, brak inicjatyw" }
-      ]
-    }
-  };
+/**
+ * 🧠 Dynamiczne profile psychologiczne
+ */
+function generateProfiles(pathway: string, riskLevel: string, analysis: any) {
+  const userProfile: Array<any> = [];
+  const partnerProfile: Array<any> = [];
   
-  return profiles[pathway] || profiles.before;
-}
-
-function generateConclusion(riskLevel: string) {
+  // Profil użytkownika
+  if (riskLevel === 'critical' || riskLevel === 'high') {
+    userProfile.push({
+      label: "Stan emocjonalny",
+      value: "Wysoki stres - ryzyko impulsywnych decyzji ⚠️"
+    });
+    userProfile.push({
+      label: "Priorytet",
+      value: "Zachowanie kontroli i spokoju - NIE reaguj emocjonalnie"
+    });
+  } else if (riskLevel === 'medium') {
+    userProfile.push({
+      label: "Stan emocjonalny",
+      value: "Niepewność, wyczulenie na sygnały"
+    });
+    userProfile.push({
+      label: "Wyzwanie",
+      value: "Balans między troską a niepotrzebnym stresem"
+    });
+  } else {
+    userProfile.push({
+      label: "Stan emocjonalny",
+      value: "Względnie stabilny, świadomy"
+    });
+    userProfile.push({
+      label: "Zalecenie",
+      value: "Utrzymuj czujność bez paranoi"
+    });
+  }
+  
+  if (analysis.fearLevel) {
+    userProfile.push({
+      label: "Wykryty wzorzec",
+      value: "Wysoki poziom lęku - może wpływać na postrzeganie sytuacji"
+    });
+  }
+  
+  if (!analysis.hasSupport) {
+    userProfile.push({
+      label: "Izolacja społeczna",
+      value: "⚠️ Brak sieci wsparcia - krytyczne zagrożenie"
+    });
+  }
+  
+  // Profil partnerki
+  if (analysis.manipulation || analysis.manipulationRisk > 30) {
+    partnerProfile.push({
+      label: "Wykryte wzorce",
+      value: "🚨 Manipulacja emocjonalna - gaslighting, kontrola"
+    });
+  }
+  
+  if (analysis.poorCommunication) {
+    partnerProfile.push({
+      label: "Komunikacja",
+      value: "Dystans, unikanie, emocjonalny chłód"
+    });
+  }
+  
+  if (analysis.financialControl) {
+    partnerProfile.push({
+      label: "Kontrola finansowa",
+      value: "⚠️ Próby kontroli majątku i dostępu do pieniędzy"
+    });
+  }
+  
+  if (analysis.kidsConflict && analysis.hasKids) {
+    partnerProfile.push({
+      label: "Strategia",
+      value: "🚨 Wykorzystywanie dzieci jako broni w konflikcie"
+    });
+  }
+  
+  if (analysis.alienationRisk > 30) {
+    partnerProfile.push({
+      label: "Sygnały alarmowe",
+      value: "🔴 Wzorce alienacyjne - izolowanie od dzieci"
+    });
+  }
+  
+  if (partnerProfile.length === 0) {
+    partnerProfile.push({
+      label: "Obserwowane zachowanie",
+      value: "Brak wyraźnych sygnałów alarmowych"
+    });
+  }
+  
   return {
-    summary: "Zachowaj spokój i działaj strategicznie.",
-    cta: "Rozpocznij działanie już dziś"
+    user: userProfile.slice(0, 5),
+    partner: partnerProfile.slice(0, 5)
   };
 }
 
-// Eksportowane funkcje dla każdej ścieżki
+/**
+ * ✅ Dynamiczne podsumowanie
+ */
+function generateConclusion(
+  riskLevel: string,
+  percentage: number,
+  analysis: any
+) {
+  let summary = "";
+  let cta = "";
+  
+  if (riskLevel === 'critical') {
+    summary = `Twoja sytuacja wymaga NATYCHMIASTOWEJ interwencji (${percentage}% ryzyka). Nie działaj sam - skontaktuj się z prawnikiem i terapeutą DZIŚ.`;
+    cta = "🚨 Działaj TERAZ - każda godzina ma znaczenie";
+  } else if (riskLevel === 'high') {
+    summary = `Znajdujesz się w sytuacji wysokiego ryzyka (${percentage}%). Potrzebujesz profesjonalnej pomocy i konkretnego planu działania.`;
+    cta = "⚠️ Zacznij działać w ciągu 48 godzin";
+  } else if (riskLevel === 'medium') {
+    summary = `Widzę niepokojące sygnały (${percentage}% ryzyka). To moment na zwiększoną czujność i potencjalne działania prewencyjne.`;
+    cta = "📋 Rozpocznij dokumentację i obserwację";
+  } else {
+    summary = `Sytuacja wydaje się stabilna (${percentage}% ryzyka), ale nie zapominaj o ciągłej pracy nad sobą i relacją.`;
+    cta = "✅ Kontynuuj dobre praktyki";
+  }
+  
+  // Dodaj akcent na najważniejsze ryzyko
+  if (analysis.alienationRisk > 40) {
+    summary += " KRYTYCZNE: Wysokie ryzyko alienacji rodzicielskiej!";
+  } else if (analysis.falseAccusationRisk > 40) {
+    summary += " KRYTYCZNE: Wysokie ryzyko fałszywych oskarżeń!";
+  }
+  
+  return { summary, cta };
+}
+
+/**
+ * 🔥 EKSPORTOWANE FUNKCJE
+ */
 export async function calculateBefore(answers: Record<string, string>) {
+  console.log('🎯 calculateBefore called with', Object.keys(answers).length, 'answers');
   return calculateRisk(answers, 'before');
 }
 
 export async function calculateCrisis(answers: Record<string, string>) {
+  console.log('🎯 calculateCrisis called with', Object.keys(answers).length, 'answers');
   return calculateRisk(answers, 'crisis');
 }
 
 export async function calculateDivorce(answers: Record<string, string>) {
+  console.log('🎯 calculateDivorce called with', Object.keys(answers).length, 'answers');
   return calculateRisk(answers, 'divorce');
 }
 
 export async function calculateMarried(answers: Record<string, string>) {
+  console.log('🎯 calculateMarried called with', Object.keys(answers).length, 'answers');
   return calculateRisk(answers, 'married');
+}
+
+/**
+ * 🧪 FUNKCJA TESTOWA - użyj do debugowania
+ */
+export async function testCalculation() {
+  console.log('🧪 Running test calculation...');
+  
+  const testAnswers = {
+    'communication_quality': 'Bardzo zła, ciągłe konflikty',
+    'financial_control': 'Partnerka kontroluje wszystkie finanse',
+    'has_kids': 'Tak',
+    'kids_relationship': 'Bardzo konfliktowe, utrudnia kontakt',
+    'emotional_abuse': 'Tak, często',
+    'support_network': 'Nie, jestem odcięty od znajomych'
+  };
+  
+  const result = await calculateRisk(testAnswers, 'crisis');
+  
+  console.log('📊 Test Result:');
+  console.log('- Risk Level:', result.riskLevel);
+  console.log('- Overall %:', result.overallRiskPercentage);
+  console.log('- Breakdown:', result.riskBreakdown);
+  console.log('- Title:', result.mainTitle);
+  console.log('- Scenarios:', result.scenarios?.length);
+  
+  return result;
 }
