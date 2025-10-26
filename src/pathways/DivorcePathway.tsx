@@ -261,3 +261,7 @@ const DivorcePathway: React.FC<DivorcePathwayProps> = ({ onResult, onBack }) => 
         color="red"
       />
     </>
+    );
+};
+
+export default CrisisPathway;
